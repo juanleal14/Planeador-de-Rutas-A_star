@@ -1,0 +1,49 @@
+import sys
+import csv
+
+
+
+
+
+# Example code for parsing the map
+class State:
+    def __init__(self, location, patients_on_board, remaining_patients):
+        self.location = location
+        self.patients_on_board = patients_on_board
+        self.remaining_patients = remaining_patients
+
+class Location:
+    def __init__(self, row, col, cell_type, time_cost, patient_type=None, facility_type=None):
+        self.row = row
+        self.col = col
+        self.cell_type = cell_type
+        self.time_cost = time_cost
+        self.patient_type = patient_type
+        self.facility_type = facility_type
+def parse_map(file_path):
+    with open(file_path, newline='') as csvfile:
+        reader = csv.reader(csvfile, delimiter=';')
+        map_data = list(reader)
+
+    locations = []
+    for i, row in enumerate(map_data):
+        for j, cell in enumerate(row):
+            if cell in ['N', 'C', 'CC', 'CN', 'P']:
+                patient_type = 'non-infectious' if cell == 'N' else 'infectious' if cell == 'C' else None
+                facility_type = 'non-infectious' if cell == 'CN' else 'infectious' if cell == 'CC' else None
+                locations.append(Location(i, j, cell, 1, patient_type, facility_type))
+            elif cell == 'X':
+                locations.append(Location(i, j, cell, float('inf')))
+            else:
+                try:
+                    time_cost = int(cell)
+                    locations.append(Location(i, j, 'travelcell', time_cost, None, None))
+                except ValueError:
+                    pass
+
+    return locations
+
+if __name__ == "__main__":
+    file_path = sys.argv[1]
+
+    map_data = parse_map(file_path)
