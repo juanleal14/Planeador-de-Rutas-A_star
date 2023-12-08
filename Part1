@@ -3,20 +3,22 @@ import os
 import re
 from constraint import *
 
+problem = Problem()
+
 class Parking_space:
-    def __init__(self, emergency, Non_Urgent, electric):
+    def __init__(self,emergency,Non_Urgent,electric):
         self.emergency = emergency
         self.Non_Urgent = Non_Urgent
         self.electric = electric
 
 class Parking_row:
     def __init__(self, num_spaces):
-        self.parking_spaces = [Parking_space(False, False, False) for _ in range(num_spaces)]
+        self.parking_spaces = [Parking_space(False,False,False) for _ in range(num_spaces)]
 
 class Parking_lot:
     def __init__(self, num_rows, num_spaces_per_row):
         self.parking_rows = [Parking_row(num_spaces_per_row) for _ in range(num_rows)]
-
+    
 def parse_file_content(content):
     lines = content.split('\n')
 
@@ -26,11 +28,11 @@ def parse_file_content(content):
     # Parsing Locations with connection to the electrical grid
     locations_line = lines[1].split(":")[1].strip()
     locations_electric = re.findall(r'\((\d+),(\d+)\)', locations_line)
-    locations_electric = [(int(x), int(y)) for x, y in locations_electric]
+    locations_electric = [(int(x)-1)*rows + int(y) for x, y in locations_electric]
     print(locations_electric)
-
-    parking_lot = Parking_lot(rows, columns)
-
+    #parking_spaces = [[Parking_space(False, False, False) for _ in range(columns)] for _ in range(rows)]
+    parking_lot = Parking_lot(rows,columns)
+   
     # Setting the emergency and electric attributes based on input
     for location in locations_electric:
         x, y = location
@@ -45,7 +47,8 @@ def parse_file_content(content):
                 vehicle_id, tipo, freezer = match.groups()
                 vehicles.append((int(vehicle_id), tipo, freezer))
 
-    return parking_lot, vehicles, rows, columns
+    return parking_lot, vehicles, rows, columns, locations_electric
+
 
 def read_file(file_path):
     try:
@@ -56,6 +59,9 @@ def read_file(file_path):
         print(f"Error: File '{file_path}' not found.")
         sys.exit(1)
 
+# Create a problem instance
+
+
 def main():
     if len(sys.argv) != 2:
         print("Usage: python parking_script.py <file_path>")
@@ -63,64 +69,67 @@ def main():
 
     file_path = sys.argv[1]
     file_content = read_file(file_path)
-    parking_lot, vehicles, rows, columns = parse_file_content(file_content)
+    parking_lot, vehicles, rows, columns, locations_electric = parse_file_content(file_content)
 
     print("\nVehicle Information:")
     for vehicle in vehicles:
         print(vehicle)
-
     print("\nparking_lot information")
     for i in parking_lot.parking_rows:
         for j in i.parking_spaces:
-            print(j.electric, " ", j.emergency, " ", j.Non_Urgent, "\n")
+            print(j.electric," ",j.emergency," ",j.Non_Urgent,"\n")
 
     print("\n\n\nNow Restrictions\n\n\n")
     problem = Problem()
 
-    # Add variables to the problem
-    # Each parking space is a variable, and the domain of each variable is the set of all vehicles
+# Add variables to the problem
+# Each parking space is a variable, and the domain of each variable is the set of all vehicles
+    vehicles_id = [vehicle_id for vehicle_id, _, _ in vehicles]
+    print(vehicles_id)
+    #for row in range(rows):
+        #for column in range(columns):
+    
     print("\nVariables\n")
-    for row in range(rows):
-        for column in range(columns):
-            constraint_name = f"P_{row}_{column}"
-            print(f"Adding Variable: {constraint_name}")
-            problem.addVariable(f"P_{row}_{column}", vehicles)
+    for vehicle_id, _, freezer in vehicles:
+        if freezer == "C":
+            problem.addVariable(vehicle_id, locations_electric)
+        elif freezer == "X":
+            problem.addVariable(vehicle_id, range(rows*columns))
 
+    # Constraint 2: Two different vehicles cannot take the same location.
+    print("Constraint 2: Two different vehicles cannot take the same location.")
+    problem.addConstraint(AllDifferentConstraint())
+    sol = problem.getSolution()
+    print(sol)
+    #problem.addVariables(vehicles_id, range(rows*columns))
     # Add constraints to the problem
 
     # Constraint 1: Every vehicle must be assigned one location and only one.
-    print("\nRestriction 1\n")
-    for vehicle_id, _, _ in vehicles:
-        constraint_names = [f"P_{row}_{column}_{vehicle_id}" for row in range(rows) for column in range(columns)]
-        print(f"Adding constraint: {constraint_names}")
-        problem.addConstraint(lambda *args: sum(args) == 1, constraint_names)
+    #print("\nConstraints\n")
+    #print("Constraint 1: Every vehicle must be assigned one location and only one.")
+    #for vehicle_id in vehicles_id:
+    #    problem.addConstraint(lambda x, vehicle_id=vehicle_id: x == vehicle_id, vehicle_id)
 
-    # Constraint 2: Two different vehicles cannot take the same location.
-    print("\nRestriction 2\n")
-    for row in range(rows):
-        for column in range(columns):
-            constraint_names = [f"P_{row}_{column}_{vehicle_id}" for vehicle_id, _, _ in vehicles]
-            print(f"Adding constraint: {constraint_names}")
-            problem.addConstraint(AllDifferentConstraint(), constraint_names)
-
+    
     # Constraint 3: Vehicles equipped with a freezer can only take a location with connection to the electrical network.
-    print("\nRestriction 3\n")
-    for row in range(rows):
-        for column in range(columns):
-            if not parking_lot.parking_rows[row].parking_spaces[column].electric:
-                for vehicle_id, _, freezer in vehicles:
-                    constraint_name = f"P_{row}_{column}_{vehicle_id}"
-                    print(f"Adding constraint: {constraint_name}")
-                    if freezer == "C":
-                        problem.addConstraint(lambda vehicle: vehicle[2] == "C", [constraint_name])
-                    else:
-                        problem.addConstraint(lambda vehicle: vehicle[2] != "C", [constraint_name])
-
-
+    #for row in range(rows):
+    #    for column in range(columns):
+    #        if not parking_lot.parking_rows[row].parking_spaces[column].electric:
+    #            problem.addConstraint(lambda x, parking_lot.parking_rows[row].parking_spaces[column] = parking_lot.parking_rows[row].parking_spaces[column] : x != freezer_vehicle, [parking_lot.parking_rows[row].parking_spaces[column]])
     # Constraints 4 and 5 would be similar, but would require more complex constraint functions
 
+    #constraint 3
+    #print("Constraint 3: Vehicles equipped with a freezer can only take a location with connection to the electrical network.")
+    #for vehicle_id, tipo, freezer in vehicles:
+    #    if freezer == "C":
+    #        problem.addConstraint(lambda x, vehicle_id=vehicle_id: parking_lot.parking_rows[x//columns].parking_spaces[x%columns].electric, [vehicle_id])
+    #freezers = [freezer for _, _, freezer in vehicles]
+    #print(freezers)
     # Get the solutions to the problem
-    solutions = problem.getSolutions()
-    print("\nSolutions computed\n")
+    #print("Solutions")
+    #solutions = problem.getSolutions()
+    #print (" #{0} solutions have been found: ".format (len (solutions)))
+    #for s in solutions:
+    #    print (s)
 if __name__ == "__main__":
     main()
