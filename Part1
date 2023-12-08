@@ -28,15 +28,20 @@ def parse_file_content(content):
     # Parsing Locations with connection to the electrical grid
     locations_line = lines[1].split(":")[1].strip()
     locations_electric = re.findall(r'\((\d+),(\d+)\)', locations_line)
-    locations_electric = [(int(x)-1)*rows + int(y) for x, y in locations_electric]
+    locations_electric = [(int(x),int(y)) for x, y in locations_electric]
     print(locations_electric)
-    #parking_spaces = [[Parking_space(False, False, False) for _ in range(columns)] for _ in range(rows)]
     parking_lot = Parking_lot(rows,columns)
-   
-    # Setting the emergency and electric attributes based on input
     for location in locations_electric:
         x, y = location
         parking_lot.parking_rows[x-1].parking_spaces[y-1].electric = True
+    #Turn locations_electric into a list of numbers, being (1,1) number 1, (1,2) number 2, (2,1) number 3, etc
+    locations_electric = [(x-1)*columns+y for x,y in locations_electric]
+    print(locations_electric)
+    #parking_spaces = [[Parking_space(False, False, False) for _ in range(columns)] for _ in range(rows)]
+
+   
+    # Setting the emergency and electric attributes based on input
+
 
     # Parsing Vehicle information
     vehicles = []
@@ -86,21 +91,41 @@ def main():
 # Each parking space is a variable, and the domain of each variable is the set of all vehicles
     vehicles_id = [vehicle_id for vehicle_id, _, _ in vehicles]
     print(vehicles_id)
-    #for row in range(rows):
-        #for column in range(columns):
-    
+    # for row in range(rows):
+    #     for column in range(columns):
+    # Create an array from 1 to rows*columns
+    locations = []  # Define the "locations" list
+    for i in range(rows * columns):
+        locations.append(i + 1)
     print("\nVariables\n")
     for vehicle_id, _, freezer in vehicles:
         if freezer == "C":
             problem.addVariable(vehicle_id, locations_electric)
         elif freezer == "X":
-            problem.addVariable(vehicle_id, range(rows*columns))
+            problem.addVariable(vehicle_id, locations)
 
     # Constraint 2: Two different vehicles cannot take the same location.
     print("Constraint 2: Two different vehicles cannot take the same location.")
     problem.addConstraint(AllDifferentConstraint())
+    #Constraint 4: . A TSU vehicle cannot have any other vehicle parked in front of it, in the same row, except if it is also another TSU vehicle
+    print("Constraint 4: . A TSU vehicle cannot have any other vehicle parked in front of it, in the same row, except if it is also another TSU vehicle")
+    for vehicle_id, Urgent, _ in vehicles:
+        for vehicle_id2, Urgent2, _ in vehicles:
+            if vehicle_id != vehicle_id2:
+                if Urgent == "TSU" and Urgent2 == "TNU":
+                    for i in range(columns - vehicle_id%columns):
+                        problem.addConstraint(lambda x,y: y!= x + i, [vehicle_id,vehicle_id2])
+    #Constraint 5: Maneuvrability constraint
+    print("Constraint 5: Maneuvrability constraint")
+    for vehicle_id, _, _ in vehicles:
+        for vehicle_id2, _, _ in vehicles:
+            if vehicle_id != vehicle_id2:
+                problem.addConstraint(lambda x,y: y!= x + columns or y != x - columns, [vehicle_id,vehicle_id2])
     sol = problem.getSolution()
+    #print(len(problem.getSolutions()))
+    #Compute how many there are
     print(sol)
+    #print(sol)
     #problem.addVariables(vehicles_id, range(rows*columns))
     # Add constraints to the problem
 
