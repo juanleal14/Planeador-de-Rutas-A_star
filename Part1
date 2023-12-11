@@ -18,7 +18,13 @@ class Parking_row:
 class Parking_lot:
     def __init__(self, num_rows, num_spaces_per_row):
         self.parking_rows = [Parking_row(num_spaces_per_row) for _ in range(num_rows)]
-    
+
+class Vehicle:
+    def __init__(self, vehicle_id, type, freezer, location):
+        self.id = vehicle_id
+        self.type = type
+        self.freezer = freezer
+        self.location = location
 def parse_file_content(content):
     lines = content.split('\n')
 
@@ -46,11 +52,16 @@ def parse_file_content(content):
     # Parsing Vehicle information
     vehicles = []
     for line in lines[2:]:
+        vehicle = Vehicle(None, None, None, -1)
         if line:
             match = re.match(r'(\d+)-(\w+)-(\w+)', line)
             if match:
                 vehicle_id, tipo, freezer = match.groups()
-                vehicles.append((int(vehicle_id), tipo, freezer))
+                vehicle.id = int(vehicle_id)
+                vehicle.type = tipo
+                vehicle.freezer = freezer
+                vehicle.location = vehicle.id
+                vehicles.append(vehicle)
 
     return parking_lot, vehicles, rows, columns, locations_electric
 
@@ -68,6 +79,15 @@ def read_file(file_path):
 
 
 def main():
+    def TSU_get_out(x,y):
+        if y > x:
+            return y//rows != x//rows
+        else:
+            return True
+    def get_location(vehicle_id):
+        for vehicle in vehicles:
+            if vehicle.id == vehicle_id:
+                return int(vehicle.location)
     if len(sys.argv) != 2:
         print("Usage: python parking_script.py <file_path>")
         sys.exit(1)
@@ -78,7 +98,7 @@ def main():
 
     print("\nVehicle Information:")
     for vehicle in vehicles:
-        print(vehicle)
+        print(vehicle.id, vehicle.type, vehicle.freezer, vehicle.location)
     print("\nparking_lot information")
     for i in parking_lot.parking_rows:
         for j in i.parking_spaces:
@@ -87,44 +107,42 @@ def main():
     print("\n\n\nNow Restrictions\n\n\n")
     problem = Problem()
 
-# Add variables to the problem
-# Each parking space is a variable, and the domain of each variable is the set of all vehicles
-    vehicles_id = [vehicle_id for vehicle_id, _, _ in vehicles]
-    print(vehicles_id)
+    # Add variables to the problem
+    # Each parking space is a variable, and the domain of each variable is the set of all vehicles
     # for row in range(rows):
     #     for column in range(columns):
     # Create an array from 1 to rows*columns
     locations = []  # Define the "locations" list
     for i in range(rows * columns):
-        locations.append(i + 1)
+        locations.append(int(i + 1))
     print("\nVariables\n")
-    for vehicle_id, _, freezer in vehicles:
-        if freezer == "C":
-            problem.addVariable(vehicle_id, locations_electric)
-        elif freezer == "X":
-            problem.addVariable(vehicle_id, locations)
+    for vehicle in vehicles:
+        if vehicle.freezer == 'C':
+            problem.addVariable(vehicle.id, locations_electric)
+        elif vehicle.freezer == 'X':
+            problem.addVariable(vehicle.id, locations)
 
     # Constraint 2: Two different vehicles cannot take the same location.
     print("Constraint 2: Two different vehicles cannot take the same location.")
     problem.addConstraint(AllDifferentConstraint())
     #Constraint 4: . A TSU vehicle cannot have any other vehicle parked in front of it, in the same row, except if it is also another TSU vehicle
     print("Constraint 4: . A TSU vehicle cannot have any other vehicle parked in front of it, in the same row, except if it is also another TSU vehicle")
-    for vehicle_id, Urgent, _ in vehicles:
-        for vehicle_id2, Urgent2, _ in vehicles:
-            if vehicle_id != vehicle_id2:
-                if Urgent == "TSU" and Urgent2 == "TNU":
-                    for i in range(columns - vehicle_id%columns):
-                        problem.addConstraint(lambda x,y: y!= x + i, [vehicle_id,vehicle_id2])
+    for vehicle1 in vehicles:
+        for vehicle2 in vehicles:
+            if vehicle1.id != vehicle2.id:
+                if vehicle1.type == "TSU" and vehicle2.type == "TNU":
+                    problem.addConstraint(TSU_get_out, (vehicle1.id, vehicle2.id))
+                    #print("The vehicle 1: ",vehicle1.id," and vehicle 2: ",vehicle2.id," cannot be in : ",vehicle1.location + i," ",vehicle2.location)
     #Constraint 5: Maneuvrability constraint
     print("Constraint 5: Maneuvrability constraint")
-    for vehicle_id, _, _ in vehicles:
-        for vehicle_id2, _, _ in vehicles:
-            if vehicle_id != vehicle_id2:
-                problem.addConstraint(lambda x,y: y!= x + columns or y != x - columns, [vehicle_id,vehicle_id2])
+    for vehicle1 in vehicles:
+        for vehicle2 in vehicles:
+            if vehicle1.id != vehicle2.id:
+                problem.addConstraint(lambda x,y: y!= x + columns or y != x - columns, (vehicle1.id,vehicle2.id))
     sol = problem.getSolution()
+    print(sol)
     #print(len(problem.getSolutions()))
     #Compute how many there are
-    print(sol)
     #print(sol)
     #problem.addVariables(vehicles_id, range(rows*columns))
     # Add constraints to the problem
