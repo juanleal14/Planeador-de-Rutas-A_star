@@ -133,6 +133,7 @@ def main():
     # Constraint 2: Two different vehicles cannot take the same location.
     print("Constraint 2: Two different vehicles cannot take the same location.")
     problem.addConstraint(AllDifferentConstraint())
+    # Constraint 1: Every vehicle must be assigned one location and only one.
     #Constraint 4: . A TSU vehicle cannot have any other vehicle parked in front of it, in the same row, except if it is also another TSU vehicle
     print("Constraint 4: . A TSU vehicle cannot have any other vehicle parked in front of it, in the same row, except if it is also another TSU vehicle")
     for vehicle1 in vehicles:
@@ -148,42 +149,24 @@ def main():
             if vehicle1.id != vehicle2.id:
                 problem.addConstraint(Manoeuvrability, (vehicle1.id,vehicle2.id))
     sol = problem.getSolutions()
+    num_solutions = len(sol)
+    first_solution = sol[0] if sol else None
+    print(first_solution)
+    if first_solution:
+        parking = [['"-"' for _ in range(columns)] for _ in range(rows)]
+        for vehicle_id, location in first_solution.items():
+            print(vehicle_id,location)
+            x, y = divmod(location-1, columns)
+            print(x,y)
+            print(parking[x][y])
+            parking[x][y] = f'"{vehicle_id}-{vehicles[vehicle_id-1].type}-{vehicles[vehicle_id-1].freezer}"'
 
-    #for i in sol:
-        #print(i)
-    print(len(sol))
-    #print(len(problem.getSolutions()))
-    #Compute how many there are
-    #print(sol)
-    #problem.addVariables(vehicles_id, range(rows*columns))
-    # Add constraints to the problem
+        formatted_parking_lot = f'{num_solutions}\n'
+        formatted_parking_lot += '\n'.join([','.join(row) for row in parking])
 
-    # Constraint 1: Every vehicle must be assigned one location and only one.
-    #print("\nConstraints\n")
-    #print("Constraint 1: Every vehicle must be assigned one location and only one.")
-    #for vehicle_id in vehicles_id:
-    #    problem.addConstraint(lambda x, vehicle_id=vehicle_id: x == vehicle_id, vehicle_id)
+        with open('parking.csv', 'w') as f:
+            f.write(formatted_parking_lot)
 
-    
-    # Constraint 3: Vehicles equipped with a freezer can only take a location with connection to the electrical network.
-    #for row in range(rows):
-    #    for column in range(columns):
-    #        if not parking_lot.parking_rows[row].parking_spaces[column].electric:
-    #            problem.addConstraint(lambda x, parking_lot.parking_rows[row].parking_spaces[column] = parking_lot.parking_rows[row].parking_spaces[column] : x != freezer_vehicle, [parking_lot.parking_rows[row].parking_spaces[column]])
-    # Constraints 4 and 5 would be similar, but would require more complex constraint functions
-
-    #constraint 3
-    #print("Constraint 3: Vehicles equipped with a freezer can only take a location with connection to the electrical network.")
-    #for vehicle_id, tipo, freezer in vehicles:
-    #    if freezer == "C":
-    #        problem.addConstraint(lambda x, vehicle_id=vehicle_id: parking_lot.parking_rows[x//columns].parking_spaces[x%columns].electric, [vehicle_id])
-    #freezers = [freezer for _, _, freezer in vehicles]
-    #print(freezers)
-    # Get the solutions to the problem
-    #print("Solutions")
-    #solutions = problem.getSolutions()
-    #print (" #{0} solutions have been found: ".format (len (solutions)))
-    #for s in solutions:
-    #    print (s)
 if __name__ == "__main__":
     main()
+    
