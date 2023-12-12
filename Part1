@@ -80,10 +80,18 @@ def read_file(file_path):
 
 def main():
     def TSU_get_out(x,y):
-        if y > x:
-            return y//rows != x//rows
+        if (y-1)%columns > (x-1)%columns and (y-1)//columns == (x-1)//columns:
+            return (y-1)//columns != (x-1)//columns
         else:
             return True
+    def Manoeuvrability(x,y):
+        if (x-1)//columns == rows-1:
+            return y != x - columns
+        elif (x-1)//columns == 0:
+            return y != x + columns
+        else:
+            return( y!= x + columns or y != x - columns)
+
     def get_location(vehicle_id):
         for vehicle in vehicles:
             if vehicle.id == vehicle_id:
@@ -138,9 +146,12 @@ def main():
     for vehicle1 in vehicles:
         for vehicle2 in vehicles:
             if vehicle1.id != vehicle2.id:
-                problem.addConstraint(lambda x,y: y!= x + columns or y != x - columns, (vehicle1.id,vehicle2.id))
-    sol = problem.getSolution()
-    print(sol)
+                problem.addConstraint(Manoeuvrability, (vehicle1.id,vehicle2.id))
+    sol = problem.getSolutions()
+
+    #for i in sol:
+        #print(i)
+    print(len(sol))
     #print(len(problem.getSolutions()))
     #Compute how many there are
     #print(sol)
