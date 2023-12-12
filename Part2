@@ -41,9 +41,149 @@ def parse_map(file_path):
                 except ValueError:
                     pass
 
-    return locations
+def initial_state(map_locations):
+    parking_location = next(loc for loc in map_locations if loc.cell_type == 'P')
+    initial_ambulance = Ambulance(parking_location, 0, 0, 50)  # Initial patients and energy values can be adjusted
+    return State(initial_ambulance, [], 50)
+
+def goal_test(state):
+    return state.ambulance.location.cell_type == 'P' and state.patients == []
+
+def actions(state):
+    ambulance_location = state.ambulance.location
+    possible_actions = []
+
+    # Move actions
+    directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+    for dr, dc in directions:
+        new_row, new_col = ambulance_location.row + dr, ambulance_location.col + dc
+
+        if 0 <= new_row < len(map_locations) and 0 <= new_col < len(map_locations[0]):
+            new_location = next(loc for loc in map_locations if loc.row == new_row and loc.col == new_col)
+            if new_location.cell_type not in ['X', 'P']:  # Exclude non-traversable and parking cells
+                possible_actions.append(('MOVE', new_location))
+
+    # Pick up patients
+    if state.ambulance.contiguous_patients > 0 and ambulance_location.cell_type == 'C':
+        possible_actions.append(('PICKUP_CONTIGUOUS', ambulance_location))
+
+    if state.ambulance.non_contiguous_patients > 0 and ambulance_location.cell_type == 'N':
+        possible_actions.append(('PICKUP_NON_CONTIGUOUS', ambulance_location))
+
+    # Drop off patients
+    if state.ambulance.contiguous_patients < 2 and ambulance_location.cell_type == 'CC':
+        possible_actions.append(('DROPOFF_CONTIGUOUS', ambulance_location))
+
+    if state.ambulance.non_contiguous_patients < 10 - state.ambulance.contiguous_patients and ambulance_location.cell_type == 'CN':
+        possible_actions.append(('DROPOFF_NON_CONTIGUOUS', ambulance_location))
+
+    return possible_actions
+
+def result(state, action):
+    action_type, location = action
+    new_ambulance = Ambulance(location, state.ambulance.contiguous_patients, state.ambulance.non_contiguous_patients, state.remaining_energy)
+
+    new_patients = state.patients.copy()
+
+    if action_type == 'PICKUP_CONTIGUOUS':
+        new_ambulance.contiguous_patients -= 1
+        new_patients.append('C')
+
+    elif action_type == 'PICKUP_NON_CONTIGUOUS':
+        new_ambulance.non_contiguous_patients -= 1
+        new_patients.append('N')
+
+    elif action_type == 'DROPOFF_CONTIGUOUS':
+        new_ambulance.contiguous_patients += 1
+        new_patients.remove('C')
+
+    elif action_type == 'DROPOFF_NON_CONTIGUOUS':
+        new_ambulance.non_contiguous_patients += 1
+        new_patients.remove('N')
+
+    new_remaining_energy = state.remaining_energy - location.cost
+
+    return State(new_ambulance, new_patients, new_remaining_energy)
+
+def cost(state, action):
+    action_type, location = action
+
+    # Cost of moving to a new location
+    move_cost = location.cost
+
+    # Cost of picking up or dropping off a patient
+    pickup_dropoff_cost = 0
+    if action_type.startswith('PICKUP'):
+        pickup_dropoff_cost = 5  # Adjust based on your problem
+    elif action_type.startswith('DROPOFF'):
+        pickup_dropoff_cost = 2  # Adjust based on your problem
+
+    return move_cost + pickup_dropoff_cost
+
+
+
+
+def heuristic_1(state):
+    # Implement the first heuristic function
+    pass
+
+def heuristic_2(state):
+    # Implement the second heuristic function
+    pass
+
+def a_star_search(initial_state, heuristic_function):
+    heap = [(0, initial_state)]
+    visited = set()
+
+    while heap:
+        current_cost, current_state = heapq.heappop(heap)
+
+        if current_state.type = "C" or "X":
+            #convert current_state to a travel state with cost 1
+
+
+        #energy
+
+        if goal_test(current_state):
+            return current_state  # Found the goal state
+
+        for action in actions(current_state):
+            new_state = result(current_state, action)
+            new_cost = current_cost + cost(current_state, action) + heuristic_function(new_state)
+
+            heapq.heappush(heap, (new_cost, new_state))
+
+    return None  # No solution found
+
+def print_solution(state):
+    # Implement logic to print the solution
+    pass
 
 if __name__ == "__main__":
-    file_path = sys.argv[1]
 
-    map_data = parse_map(file_path)
+
+    if len(sys.argv) != 3:
+        print("Usage: python ASTARTraslados.py <pathmap.csv> <num-h>")
+        sys.exit(1)
+
+    
+    heuristic_num = int(sys.argv[2])
+
+    file_path = sys.argv[1]
+    map_locations = parse_map(file_path)
+    initial = initial_state(map_locations)
+
+    if heuristic_num == 1:
+        solution = a_star_search(initial, heuristic_1)
+    elif heuristic_num == 2:
+        solution = a_star_search(initial, heuristic_2)
+    else:
+        print("Invalid heuristic number.")
+        sys.exit(1)
+
+    if solution:
+        print_solution(solution)
+    else:
+        print("No solution found.")
+
+    return locations
