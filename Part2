@@ -4,182 +4,184 @@ import heapq
 initial_energy = 50
 
 
-
-
-# Example code for parsing the map
-class Ambulance:
-    def __init__(self, row, col, patients_C, patients_N,remaining_patients_C, remaining_patients_N, remaining_energy):
-        self.row = row
-        self.col = col
-        self.patients_C = patients_C
-        self.patients_N = patients_N
-        self.remaining_patients_C = remaining_patients_C
-        self.remaining_patients_N = remaining_patients_N
-        self.total_rows = len(map_data)
-        self.total_columns = len(map_data[0])
-        self.remaining_energy = remaining_energy
-        
-class Location:
-    def __init__(self, row, col, cell_type, time_cost, patient_type, facility_type):
-        self.row = row
-        self.col = col
-        self.cell_type = cell_type
-        self.time_cost = time_cost
-        self.patient_type = patient_type
-        self.facility_type = facility_type
-
-def parse_map(file_path):
-    with open(file_path, newline='') as csvfile:
-        reader = csv.reader(csvfile, delimiter=';')
-        map_data = list(reader)
-
-    locations = []
-    for i, row in enumerate(map_data):
-        for j, cell in enumerate(row):
-            if cell in ['N', 'C', 'CC', 'CN', 'P']:
-                patient_type = 'non-infectious' if cell == 'N' else 'infectious' if cell == 'C' else None
-                facility_type = 'non-infectious' if cell == 'CN' else 'infectious' if cell == 'CC' else None
-                locations.append(Location(i, j, cell, 1, patient_type, facility_type))
-            elif cell == 'X':
-                locations.append(Location(i, j, cell, float('inf')))
-            else:
-                try:
-                    time_cost = int(cell)
-                    locations.append(Location(i, j, 'travelcell', time_cost, None, None))
-                except ValueError:
-                    pass
-    
-    return locations
-
-# Example code for parsing the map
-
-def initial_state(locations):
-    parking_location = next(loc for loc in locations if loc.cell_type == 'P')
-    for loc in locations:
-        if loc.cell_type == 'C':
-            initial_patients_C += 1
-        elif loc.cell_type == 'N':
-            initial_patients_N += 1
-    initial_ambulance = Ambulance(parking_location.row,parking_location.col, 0, 0,initial_patients_C,initial_patients_N, 50)  # Initial patients and energy values can be adjusted
-    return initial_ambulance
-
-def goal_test(ambulance):
-    return ambulance.cell_type == 'P' and ambulance.remaining_patients_C == 0 and ambulance.remaining_patients_N == 0
-
-def actions(ambulance):
-    ambulance_location = ambulance.row, ambulance.col
-    possible_actions = []
-    # Move actions
-    directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
-    for dr, dc in directions:
-        new_row, new_col = ambulance_location.row + dr, ambulance_location.col + dc
-
-        if 0 <= new_row < len(ambulance.total_rows) and 0 <= new_col < len(ambulance.total_columns):
-            new_location = next(loc for loc in locations if loc.row == new_row and loc.col == new_col)
-            if new_location.cell_type not in ['X', 'P']:  # Exclude non-traversable and parking cells
-                possible_actions.append(('MOVE', new_location))
-
-    # Pick up patients
-    if ambulance.patients_C < 2 and new_location.cell_type == 'C' and ambulance.patients_N < 9:
-        possible_actions.append(('PICKUP_CONTIGUOUS', new_location))
-
-    if ambulance.patients_N < 10 and new_location.cell_type == 'N' and ambulance.patients_C == 0:
-        possible_actions.append(('PICKUP_NON_CONTIGUOUS', new_location))
-
-    # Drop off patients
-    if ambulance.patients_C  > 0 and new_location.cell_type == 'CC':
-        possible_actions.append(('DROPOFF_CONTIGUOUS', new_location))
-
-    if ambulance.patients_N > 0 and ambulance.patients_C == 0 and new_location.cell_type == 'CN':
-        possible_actions.append(('DROPOFF_NON_CONTIGUOUS', new_location))
-
-    return possible_actions
-
-def result(ambulance, action):
-    action_type, location = action
-    new_ambulance = Ambulance(location.row,location.col, ambulance.contiguous_patients, ambulance.non_contiguous_patients, ambulance.remaining_patients_C,ambulance.remaining_patients_N,ambulance.remaining_energy)
-
-
-    if action_type == 'PICKUP_CONTIGUOUS':
-        new_ambulance.patients_C += 1
-
-    elif action_type == 'PICKUP_NON_CONTIGUOUS':
-        new_ambulance.patients_N += 1
-
-    elif action_type == 'DROPOFF_CONTIGUOUS':
-        new_ambulance.remaining_patients_C -= new_ambulance.patients_C
-        new_ambulance.patients_C = 0
-
-    elif action_type == 'DROPOFF_NON_CONTIGUOUS':
-        new_ambulance.remaining_patients_N -= new_ambulance.patients_N
-        new_ambulance.patients_N = 0
-
-    new_ambulance.remaining_energy -= location.time_cost
-
-    return new_ambulance
-
-def cost(ambulance, action):
-    action_type, location = action
-
-    # Cost of moving to a new location
-    move_cost = location.time_cost
-
-    return move_cost
-
-
-
-
-def heuristic_1(state):
-    # Implement the first heuristic function
-    pass
-
-def heuristic_2(state):
-    # Implement the second heuristic function
-    pass
-
-def a_star_search(initial_state, heuristic_function):
-    heap = [(0, initial_state)]
-    visited = set()
-
-    while heap:
-        current_cost, current_state = heapq.heappop(heap)
-
-        #if current_state.type == "C" or "X":
-            #convert current_state to a travel state with cost 1
-
-
-        #energy
-
-        if goal_test(current_state):
-            return current_state  # Found the goal state
-
-        for action in actions(current_state):
-            new_state = result(current_state, action)
-            new_cost = current_cost + cost(current_state, action) + heuristic_function(new_state)
-
-            heapq.heappush(heap, (new_cost, new_state))
-
-    return None  # No solution found
-
-def print_solution(state):
-    # Implement logic to print the solution
-    pass
-
 def main():
+
+    # Example code for parsing the map
+    class Ambulance:
+        def __init__(self, row, col, patients_C, patients_N,remaining_patients_C, remaining_patients_N, remaining_energy):
+            self.row = row
+            self.col = col
+            self.patients_C = patients_C
+            self.patients_N = patients_N
+            self.remaining_patients_C = remaining_patients_C
+            self.remaining_patients_N = remaining_patients_N
+            self.total_rows = rows
+            print(self.total_rows)
+            self.total_columns = columns
+            print(self.total_columns)
+            self.remaining_energy = remaining_energy
+            
+    class Location:
+        def __init__(self, row, col, cell_type, time_cost, patient_type, facility_type):
+            self.row = row
+            self.col = col
+            self.cell_type = cell_type
+            self.time_cost = time_cost
+            self.patient_type = patient_type
+            self.facility_type = facility_type
+
+    def parse_map(file_path):
+        with open(file_path, newline='') as csvfile:
+            reader = csv.reader(csvfile, delimiter=';')
+            map_data = list(reader)
+
+        locations = []
+        for i, row in enumerate(map_data):
+            for j, cell in enumerate(row):
+                if cell in ['N', 'C', 'CC', 'CN', 'P']:
+                    patient_type = 'non-infectious' if cell == 'N' else 'infectious' if cell == 'C' else None
+                    facility_type = 'non-infectious' if cell == 'CN' else 'infectious' if cell == 'CC' else None
+                    locations.append(Location(i, j, cell, 1, patient_type, facility_type))
+                elif cell == 'X':
+                    locations.append(Location(i, j, cell, float('inf'), None, None))
+                else:
+                    try:
+                        time_cost = int(cell)
+                        locations.append(Location(i, j, 'travelcell', time_cost, None, None))
+                    except ValueError:
+                        pass
+        rows = i + 1
+        columns = j + 1
+        return locations, rows, columns
+
+    # Example code for parsing the map
+
+    def initial_state(locations):
+        initial_patients_C = 0
+        initial_patients_N = 0
+        parking_location = next(loc for loc in locations if loc.cell_type == 'P')
+        for loc in locations:
+            if loc.cell_type == 'C':
+                initial_patients_C += 1
+            elif loc.cell_type == 'N':
+                initial_patients_N += 1
+        initial_ambulance = Ambulance(parking_location.row,parking_location.col, 0, 0,initial_patients_C,initial_patients_N, 50)  # Initial patients and energy values can be adjusted
+        return initial_ambulance
+
+    def goal_test(ambulance,location):
+        return location.cell_type == 'P' and ambulance.remaining_patients_C == 0 and ambulance.remaining_patients_N == 0
+
+    def actions(ambulance):
+        ambulance_location = ambulance.row, ambulance.col
+        possible_actions = []
+        # Move actions
+        directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+        for dr, dc in directions:
+            new_row, new_col = ambulance_location.row + dr, ambulance_location.col + dc
+
+            if 0 <= new_row < len(ambulance.total_rows) and 0 <= new_col < len(ambulance.total_columns):
+                new_location = next(loc for loc in locations if loc.row == new_row and loc.col == new_col)
+                if new_location.cell_type not in ['X', 'P']:  # Exclude non-traversable and parking cells
+                    possible_actions.append(('MOVE', new_location))
+
+        # Pick up patients
+        if ambulance.patients_C < 2 and new_location.cell_type == 'C' and ambulance.patients_N < 9:
+            possible_actions.append(('PICKUP_CONTIGUOUS', new_location))
+
+        if ambulance.patients_N < 10 and new_location.cell_type == 'N' and ambulance.patients_C == 0:
+            possible_actions.append(('PICKUP_NON_CONTIGUOUS', new_location))
+
+        # Drop off patients
+        if ambulance.patients_C  > 0 and new_location.cell_type == 'CC':
+            possible_actions.append(('DROPOFF_CONTIGUOUS', new_location))
+
+        if ambulance.patients_N > 0 and ambulance.patients_C == 0 and new_location.cell_type == 'CN':
+            possible_actions.append(('DROPOFF_NON_CONTIGUOUS', new_location))
+
+        return possible_actions
+
+    def result(ambulance, action):
+        action_type, location = action
+        new_ambulance = Ambulance(location.row,location.col, ambulance.contiguous_patients, ambulance.non_contiguous_patients, ambulance.remaining_patients_C,ambulance.remaining_patients_N,ambulance.remaining_energy)
+
+
+        if action_type == 'PICKUP_CONTIGUOUS':
+            new_ambulance.patients_C += 1
+
+        elif action_type == 'PICKUP_NON_CONTIGUOUS':
+            new_ambulance.patients_N += 1
+
+        elif action_type == 'DROPOFF_CONTIGUOUS':
+            new_ambulance.remaining_patients_C -= new_ambulance.patients_C
+            new_ambulance.patients_C = 0
+
+        elif action_type == 'DROPOFF_NON_CONTIGUOUS':
+            new_ambulance.remaining_patients_N -= new_ambulance.patients_N
+            new_ambulance.patients_N = 0
+
+        new_ambulance.remaining_energy -= location.time_cost
+
+        return new_ambulance
+
+    def cost(ambulance, action):
+        action_type, location = action
+
+        # Cost of moving to a new location
+        move_cost = location.time_cost
+
+        return move_cost
+
+
+
+
+    def heuristic_1(ambulance):
+        # Implement the first heuristic function
+
+        pass
+
+    def heuristic_2(state):
+        # Implement the second heuristic function
+        pass
+
+    def a_star_search(initial_state, heuristic_function):
+        heap = [(0, initial_state)]
+        visited = set()
+
+        while heap:
+            current_cost, current_state = heapq.heappop(heap)
+            print(current_cost, current_state)
+            #if current_state.type == "C" or "X":
+                #convert current_state to a travel state with cost 1
+
+
+            #energy
+
+            if goal_test(current_state):
+                return current_state  # Found the goal state
+
+            for action in actions(current_state):
+                new_state = result(current_state, action)
+                new_cost = current_cost + cost(current_state, action) + heuristic_function(new_state)
+
+                heapq.heappush(heap, (new_cost, new_state))
+
+        return None  # No solution found
+
+    def print_solution(state):
+        # Implement logic to print the solution
+        pass
+
+
     file_path = sys.argv[1]
-    map_data = parse_map(file_path)
-    print(map_data[20].row)
-    print(map_data[20].col)
-    print(map_data[12].cell_type)
-    print(map_data[12].time_cost)
-    print(map_data[12].patient_type)
-    print(map_data[12].facility_type)
+    locations, rows, columns = parse_map(file_path)
     heuristic = sys.argv[2]
     print(heuristic)
     print("\nInitial State\n")
-    for i in range(len(map_data)):
-        if map_data[i].cell_type == 'P':
-            Initial_state = Ambulance(map_data[i].row, map_data[i].col, 0, 0)
+    Num_patients_C = sum(1 for loc in locations if loc.cell_type == 'C')
+    Num_patients_N = sum(1 for loc in locations if loc.cell_type == 'N')
+    for i in range(len(locations)):
+        if locations[i].cell_type == 'P':
+            Initial_state = Ambulance(locations[i].row, locations[i].col, 0, 0,Num_patients_C,Num_patients_N, initial_energy)
             break
     print(Initial_state.row)
     print(Initial_state.col)
@@ -196,7 +198,7 @@ def main():
     heuristic_num = int(sys.argv[2])
 
     file_path = sys.argv[1]
-    locations = parse_map(file_path)
+    #locations = parse_map(file_path)
     initial = initial_state(locations)
 
     if heuristic_num == 1:
