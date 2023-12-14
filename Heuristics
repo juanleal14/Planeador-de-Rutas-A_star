@@ -1,0 +1,61 @@
+def heuristic_1(ambulance,location):
+        Min = 0
+        if ambulance.remaining_patients_C == 0 and ambulance.remaining_patients_N == 0:
+            for loc in locations:
+                if loc.cell_type == 'P':
+                    return abs(loc.row - location.row) + abs(loc.col - location.col)
+        elif ambulance.remaining_patients_N != 0:
+            if ambulance.patients_C == 0 and ambulance.patients_N == 0:
+                for loc in locations:
+                    if loc.cell_type == 'N':
+                        a = (loc.row - location.row) + abs(loc.col - location.col)
+                        if a <= Min:
+                            Min = a
+                        return Min
+            elif ambulance.patients_C == 0 and ambulance.patients_N != 0:
+                if ambulance.remaining_patients_N != ambulance.patients_N:
+                    for loc in locations:
+                        if loc.cell_type == 'N':
+                            a = abs(loc.row - location.row) + abs(loc.col - location.col)
+                            if a <= Min:
+                                Min = a
+                    for loc in locations:
+                        if loc.cell_type == 'CN':
+                            b = abs(loc.row - location.row) + abs(loc.col - location.col)
+                            if b <= Min:
+                                Min = b
+                    return Min
+            elif ambulance.patients_C != 0 and ambulance.patients_N != 0:
+                if ambulance.remaining_patients_C != ambulance.patients_C:
+                    for loc in locations:
+                        if loc.cell_type == 'C':
+                            a = abs(loc.row - location.row) + abs(loc.col - location.col)
+                            if a <= Min:
+                                Min = a
+                    for loc in locations:
+                        if loc.cell_type == 'CC':
+                            b = abs(loc.row - location.row) + abs(loc.col - location.col)
+                            if b <= Min:
+                                Min = b
+                    return Min
+        elif ambulance.remaining_patients_C != 0 and ambulance.remaining_patients_N == 0:
+            if ambulance.patients_C == 0 and ambulance.patients_N == 0:
+                for loc in locations:
+                    if loc.cell_type == 'C':
+                        return abs(loc.row - location.row) + abs(loc.col - location.col)
+            elif ambulance.patients_C != 0:
+                for loc in locations:
+                    if loc.cell_type == 'CC':
+                        return abs(loc.row - location.row) + abs(loc.col - location.col)
+        return 0
+    
+        pass
+
+    def heuristic_2(ambulance,location):
+        # Implement the second heuristic function
+        if ambulance.remaining_patients_C == 0 and ambulance.remaining_patients_N == 0:
+            for loc in locations:
+                if loc.cell_type == 'P':
+                    return abs(loc.row - location.row) + abs(loc.col - location.col)
+        return 0
+        pass
