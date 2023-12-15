@@ -1,7 +1,8 @@
 import sys
 import csv
 import heapq
-initial_energy = 15
+from cmath import inf
+initial_energy = 17
 
 
 def main():
@@ -36,14 +37,20 @@ def main():
             self.col = col
             self.cell_type = cell_type
             self.time_cost = time_cost
+
         def __eq__(self, other):
-            if isinstance(other, Ambulance):
-                return self.row == other.row and self.col == other.col and self.cell_type == other.cell_type and self.time_cost == other.time_cost
+            if isinstance(other, Location):
+                return (
+                    self.row == other.row
+                    and self.col == other.col
+                    and self.cell_type == other.cell_type
+                    and self.time_cost == other.time_cost
+                )
             return False
 
         def __hash__(self):
             return hash((self.row, self.col, self.cell_type, self.time_cost))
-        
+
     def parse_map(file_path):
         with open(file_path, newline='') as csvfile:
             reader = csv.reader(csvfile, delimiter=';')
@@ -87,11 +94,11 @@ def main():
         possible_actions = []
         # Move actions
         directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
-        new_ambulance = Ambulance(ambulance.location, ambulance.patients_C, ambulance.patients_N, ambulance.remaining_patients_C,ambulance.remaining_patients_N,ambulance.remaining_energy, ambulance.timesinp, ambulance.map)
         for dr, dc in directions:
             new_row, new_col = ambulance.location.row + dr, ambulance.location.col + dc
 
             if 0 <= new_row < ambulance.total_rows and 0 <= new_col < ambulance.total_columns:
+                new_ambulance = Ambulance(ambulance.location, ambulance.patients_C, ambulance.patients_N, ambulance.remaining_patients_C,ambulance.remaining_patients_N,ambulance.remaining_energy, ambulance.timesinp, ambulance.map)
                 new_ambulance.location = next(loc for loc in new_ambulance.map if loc.row == new_row and loc.col == new_col)
                 if new_ambulance.location.cell_type == 'travelcell':
                     possible_actions.append(('MOVE', new_ambulance.location))
@@ -103,7 +110,7 @@ def main():
                     else:
                         possible_actions.append(('MOVE', new_ambulance.location))
                 if new_ambulance.location.cell_type == 'C':
-                    if new_ambulance.patients_C < 2 and new_ambulance.patients_N < 9 and new_ambulance.patients_N == new_ambulance.remaining_patients_N:
+                    if new_ambulance.patients_C < 2 and new_ambulance.patients_N < 9:
                         possible_actions.append(('MOVE AND PICKUP_CONTIGUOUS', new_ambulance.location))
                     else:
                         possible_actions.append(('MOVE', new_ambulance.location))
@@ -123,7 +130,6 @@ def main():
         return possible_actions
 
     def result(ambulance, action, location):
-        action, location
         new_ambulance = Ambulance(location, ambulance.patients_C, ambulance.patients_N, ambulance.remaining_patients_C,ambulance.remaining_patients_N,ambulance.remaining_energy, ambulance.timesinp, ambulance.map)
 
             
@@ -131,27 +137,24 @@ def main():
             print("Move and pickup contiguous")
             new_ambulance.patients_C += 1
             new_ambulance.remaining_energy -= ambulance.location.time_cost
-            for loc in new_ambulance.map:
-                if loc == new_ambulance.location:
-                    loc.cell_type = 'travelcell'
-                    loc.time_cost = 1
+            for i in range(len(new_ambulance.map)):
+                if new_ambulance.map[i] == new_ambulance.location:
+                    new_ambulance.map[i].cell_type = 'travelcell'
+                    new_ambulance.map[i].time_cost = 1
                     break
-            new_ambulance.location.cell_type = 'travelcell'
-            new_ambulance.location.time_cost = 1
-        
+          
 
 
         elif action == 'MOVE AND PICKUP_NON_CONTIGUOUS':
             print("Move and pickup non contiguous")
             new_ambulance.patients_N += 1
             new_ambulance.remaining_energy -= ambulance.location.time_cost
-            for loc in new_ambulance.map:
-                if loc == new_ambulance.location:
-                    loc.cell_type = 'travelcell'
-                    loc.time_cost = 1
+            for i in range(len(new_ambulance.map)):
+                if new_ambulance.map[i] == new_ambulance.location:
+                    new_ambulance.map[i].cell_type = 'travelcell'
+                    new_ambulance.map[i].time_cost = 1
                     break
-            new_ambulance.location.cell_type = 'travelcell'
-            new_ambulance.location.time_cost = 1
+           
 
 
         elif action == 'MOVE AND DROPOFF_CONTIGUOUS':
@@ -184,111 +187,96 @@ def main():
 
 
     def heuristic_1(ambulance):
-        Min = 1000000000
-        if ambulance.remaining_patients_C == 0 and ambulance.remaining_patients_N == 0:
-            for loc in ambulance.map:
+        min1=float(inf)
+        num1=0
+        num2=0
+        new_ambulance = Ambulance(ambulance.location, ambulance.patients_C, ambulance.patients_N, ambulance.remaining_patients_C,ambulance.remaining_patients_N,ambulance.remaining_energy, ambulance.timesinp, ambulance.map)
+        if new_ambulance.remaining_patients_C == 0 and new_ambulance.remaining_patients_N == 0:
+            for loc in new_ambulance.map:
                 if loc.cell_type == 'P':
-                    return abs(loc.row - ambulance.location.row) + abs(loc.col - ambulance.location.col)
-        elif ambulance.remaining_patients_C != 0 or ambulance.remaining_patients_N != 0:
-            #print(" \nThere are N or C\n")
-            if ambulance.remaining_patients_N == 0:    
-                if ambulance.patients_C < 2:
-                    if ambulance.remaining_patients_C != ambulance.patients_C:
-                        for loc in ambulance.map:
+                    return abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+        elif new_ambulance.remaining_patients_C != 0 or new_ambulance.remaining_patients_N != 0:
+            if new_ambulance.remaining_patients_C!=0:
+                if new_ambulance.patients_C != new_ambulance.remaining_patients_C:
+                    if new_ambulance.patients_C == 2:
+                        for loc in new_ambulance.map:
+                            if loc.cell_type == 'CC':
+                                return abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+                    elif new_ambulance.patients_C > 0 and new_ambulance.patients_C < 2:
+                        for loc in new_ambulance.map:
                             if loc.cell_type == 'C':
-                                dist = abs(loc.row - ambulance.location.row) + abs(loc.col - ambulance.location.col)
-                                if dist < Min:
-                                    Min = dist
-                        return Min
-                    else:
-                        for loc in ambulance.map:
-                            if loc.cell_type == 'CC':
-                                return abs(loc.row - ambulance.location.row) + abs(loc.col - ambulance.location.col)
-                elif ambulance.patients_C == 2:
-                    for loc in ambulance.map:
-                        if loc.cell_type == 'CC':
-                            return abs(loc.row - ambulance.location.row) + abs(loc.col - ambulance.location.col)
-            elif ambulance.remaining_patients_C == 0:
-                if ambulance.patients_N < 8:
-                    if ambulance.remaining_patients_N != ambulance.patients_N:
-                        for loc in ambulance.map:
-                            if loc.cell_type == 'N':
-                                dist = abs(loc.row - ambulance.location.row) + abs(loc.col - ambulance.location.col)
-                                if dist < Min:
-                                    Min = dist
-                        return Min
-                    else:
-                        for loc in ambulance.map:
-                            if loc.cell_type == 'CN':
-                                return abs(loc.row - ambulance.location.row) + abs(loc.col - ambulance.location.col)
-                elif ambulance.patients_N == 8:
-                    for loc in ambulance.map:
-                        if loc.cell_type == 'CN':
-                            return abs(loc.row - ambulance.location.row) + abs(loc.col - ambulance.location.col)
-            elif ambulance.remaining_patients_C != 0 and ambulance.remaining_patients_N != 0:
-                #print(" \nThere are N and C\n")
-                if ambulance.patients_C == 0 and ambulance.patients_N == 0:
-                    #print("We dont have any patients")
-                    for loc in ambulance.map:
-                        if loc.cell_type == 'N':
-                            #print("Bucle con N")
-                            dist = abs(loc.row - ambulance.location.row) + abs(loc.col - ambulance.location.col)
-                            #print(dist)
-                            if dist < Min:
-                                Min = dist
-                    return Min
-                elif ambulance.patients_C != 0 and ambulance.patients_N == 0:
-                    if ambulance.patients_C == 2:
-                        for loc in ambulance.map:
-                            if loc.cell_type == 'CC':
-                                return abs(loc.row - ambulance.location.row) + abs(loc.col - ambulance.location.col)
-                    elif ambulance.patients_C < 2:
-                        if ambulance.remaining_patients_C != ambulance.patients_C:
-                            for loc in ambulance.map:
-                                if loc.cell_type == 'C':
-                                    dist = abs(loc.row - ambulance.location.row) + abs(loc.col - ambulance.location.col)
-                                    if dist < Min:
-                                        Min = dist
-                            return Min
+                                num1= abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+                                if num1<min1:
+                                    min1=num1
+                            elif loc.cell_type == 'CC':
+                                num2= abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+                        return min(min1,num2)
+                    elif new_ambulance.patients_C == 0:
+                        if new_ambulance.patients_N != new_ambulance.remaining_patients_N:
+                            if new_ambulance.patients_N == 8:
+                                for loc in new_ambulance.map:
+                                    if loc.cell_type == 'CN':
+                                        num2= abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+                                    elif loc.cell_type =='C':
+                                        num1= abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+                                        if num1<min1:
+                                            min1=num1
+                                return min(min1,num2)
+                            elif new_ambulance.patients_N <8 and new_ambulance.patients_N > 0:
+                                for loc in new_ambulance.map:
+                                    if loc.cell_type == 'CN':
+                                        num2= abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+                                    elif loc.cell_type =='C' or loc.cell_type =='N':
+                                        num1= abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+                                        if num1<min1:
+                                            min1=num1
+                                return min(min1,num2)
+                            elif new_ambulance.patients_N == 0:
+                                for loc in new_ambulance.map:
+                                    if loc.cell_type =='N':
+                                        num1= abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+                                        if num1<min1:
+                                            min1=num1
+                                return min1
                         else:
-                            for loc in ambulance.map:
-                                if loc.cell_type == 'CC':
-                                    return abs(loc.row - ambulance.location.row) + abs(loc.col - ambulance.location.col)
-                elif ambulance.patients_C == 0 and ambulance.patients_N != 0:
-                    if ambulance.patients_N < 8:
-                        if ambulance.remaining_patients_N != ambulance.patients_N:
-                            for loc in ambulance.map:
-                                if loc.cell_type == 'N':
-                                    dist = abs(loc.row - ambulance.location.row) + abs(loc.col - ambulance.location.col)
-                                    if dist < Min:
-                                        Min = dist
-                            return Min
-                        else:
-                            for loc in ambulance.map:
+                            for loc in new_ambulance.map:
                                 if loc.cell_type == 'CN':
-                                    return abs(loc.row - ambulance.location.row) + abs(loc.col - ambulance.location.col)
-                    elif ambulance.patients_N == 8:
-                        for loc in ambulance.map:
+                                    num1= abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+                                elif loc.cell_type =='C':
+                                    num2= abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+                                    print('\n',num2,'\n')
+                                    if num2<min1:
+                                        min1=num2
+                            print('\nDistance from CN: ' ,num1,'\n')
+                            print('\nDistance from C: ',min1,'\n')
+                            return min(min1,num1)
+                else:
+                    for loc in new_ambulance.map:
+                        if loc.cell_type == 'CC':
+                            return abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+            else:
+                if new_ambulance.patients_N != new_ambulance.remaining_patients_N:
+                    if new_ambulance.patients_N == 8:
+                        for loc in new_ambulance.map:
                             if loc.cell_type == 'CN':
-                                return abs(loc.row - ambulance.location.row) + abs(loc.col - ambulance.location.col)
-                elif ambulance.patients_C != 0 and ambulance.patients_N != 0:
-                    if ambulance.patients_C < 2:
-                        if ambulance.remaining_patients_C != ambulance.patients_C:
-                            for loc in ambulance.map:
-                                if loc.cell_type == 'C':
-                                    dist = abs(loc.row - ambulance.location.row) + abs(loc.col - ambulance.location.col)
-                                    if dist < Min:
-                                        Min = dist
-                            return Min
-                        else:
-                            for loc in ambulance.map:
-                                if loc.cell_type == 'CC':
-                                    return abs(loc.row - ambulance.location.row) + abs(loc.col - ambulance.location.col)
-                    elif ambulance.patients_C == 2:
-                        for loc in ambulance.map:
-                            if loc.cell_type == 'CC':
-                                return abs(loc.row - ambulance.location.row) + abs(loc.col - ambulance.location.col)
-                            
+                                return abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+                    elif new_ambulance.patients_N <8:
+                        for loc in new_ambulance.map:
+                            if loc.cell_type == 'N':
+                                num1= abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+                                if num1<min1:
+                                    min1=num1
+                            elif loc.cell_type =='CN':
+                                num2= abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+                        return min(min1,num2)
+                else:
+                    for loc in new_ambulance.map:
+                        if loc.cell_type == 'CN':
+                            return abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+            
+
+
+    
     def heuristic_2(ambulance):
         # Implement the second heuristic function
         if ambulance.remaining_patients_C == 0 and ambulance.remaining_patients_N == 0:
@@ -297,16 +285,13 @@ def main():
                     return abs(loc.row - ambulance.location.row) + abs(loc.col - ambulance.location.col)
         return 0
         pass
-    def go_back_ambulance(ambulance):
-        for loc in locations:
-                if loc.cell_type == 'P':
-                    return abs(loc.row - ambulance.location.row) + abs(loc.col - ambulance.location.col)
+
     def a_star_search(initial_state, heuristic_function):
-        heap = [(initial_state, 0)] #Open List
+        heap = [(0, initial_state)] #Open List
         came_from = set() #Closed list
         while heap:
            
-            current_state , current_cost  = heapq.heappop(heap)
+            current_cost , current_state  = heapq.heappop(heap)
 
             if current_state not in came_from and current_state.remaining_energy > 0 and current_state.timesinp < 1:
                 print("heap",current_state.location.row,current_state.location.col,current_state.patients_C,current_state.patients_N,current_state.remaining_patients_C,current_state.remaining_patients_N,current_state.remaining_energy,current_state.timesinp)
@@ -328,7 +313,7 @@ def main():
                     elif heuristic_function == 2:
                         new_cost = current_cost + location.time_cost + heuristic_2(new_state,location)
                     #print("HOla?")
-                    heapq.heappush(heap, (new_state, new_cost))
+                    heapq.heappush(heap, (new_cost, new_state))
                 came_from.add(current_state)
 
 
