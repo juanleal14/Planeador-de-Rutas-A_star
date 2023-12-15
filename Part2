@@ -90,24 +90,29 @@ def main():
 
             if 0 <= new_row < ambulance.total_rows and 0 <= new_col < ambulance.total_columns:
                 new_location = next(loc for loc in locations if loc.row == new_row and loc.col == new_col)
-                if new_location.cell_type not in ['X']:  # Exclude non-traversable and parking cells
-                    possible_actions.append(('MOVE', new_location))
+               
 
                 # Pick up patients
-                if ambulance.patients_N < 10 and new_location.cell_type == 'N' and ambulance.patients_C <2:
-                    possible_actions.append(('PICKUP_NON_CONTIGUOUS', new_location))
-                #print("Pick up C----patients_C",ambulance.patients_C)
-                if ambulance.patients_C < 2 and new_location.cell_type == 'C' and ambulance.patients_N < 9 and ambulance.patients_N == ambulance.remaining_patients_N:
-                    print("Picked up C")
-                    possible_actions.append(('PICKUP_CONTIGUOUS', new_location))
-
-                # Drop off patients
-                if ambulance.patients_C  > 0 and new_location.cell_type == 'CC':
-                    possible_actions.append(('DROPOFF_CONTIGUOUS', new_location))
-
-                if ambulance.patients_N > 0 and ambulance.patients_C == 0 and new_location.cell_type == 'CN':
-                    possible_actions.append(('DROPOFF_NON_CONTIGUOUS', new_location))
-                                            
+                if new_location.cell_type == 'N':
+                    if ambulance.patients_N < 10 and new_location.cell_type == 'N' and ambulance.patients_C <2:
+                        possible_actions.append(('MOVE AND PICKUP_NON_CONTIGUOUS', new_location))
+                    else
+                        possible_actions.append(('MOVE', new_location))
+                if new_location.cell_type == 'C':
+                    if ambulance.patients_C < 2 and ambulance.patients_N < 9 and ambulance.patients_N == ambulance.remaining_patients_N:
+                        possible_actions.append(('MOVE AND PICKUP_CONTIGUOUS', new_location))
+                    else
+                        possible_actions.append(('MOVE', new_location))
+                if new_location.cell_type == 'CC':
+                    if ambulance.patients_C  > 0
+                        possible_actions.append(('MOVE AND DROPOFF_CONTIGUOUS', new_location))
+                    else
+                        possible_actions.append(('MOVE', new_location))
+                if new_location.cell_type == 'CN':
+                    if ambulance.patients_N > 0 and ambulance.patients_C == 0
+                        possible_actions.append(('MOVE AND DROPOFF_NON_CONTIGUOUS', new_location))
+                    else
+                        possible_actions.append(('MOVE', new_location))
                 if new_location.cell_type == 'P':
                     possible_actions.append(('RECHARGE', new_location))
 
@@ -118,25 +123,31 @@ def main():
         new_ambulance = Ambulance(location.row,location.col, ambulance.patients_C, ambulance.patients_N, ambulance.remaining_patients_C,ambulance.remaining_patients_N,ambulance.remaining_energy, ambulance.timesinp)
 
             
-        if action_type == 'PICKUP_CONTIGUOUS':
+        if action_type == 'MOVE AND PICKUP_CONTIGUOUS':
             new_ambulance.patients_C += 1
+            new_ambulance.remaining_energy -= location.time_cost
             location.cell_type = 'travelcell'
             location.time_cost = 1
+        
 
 
-        elif action_type == 'PICKUP_NON_CONTIGUOUS':
+        elif action_type == 'MOVE AND PICKUP_NON_CONTIGUOUS':
             new_ambulance.patients_N += 1
+            new_ambulance.remaining_energy -= location.time_cost
             location.cell_type = 'travelcell'
             location.time_cost = 1
 
 
-        elif action_type == 'DROPOFF_CONTIGUOUS':
+        elif action_type == 'MOVE AND DROPOFF_CONTIGUOUS':
             new_ambulance.remaining_patients_C -= new_ambulance.patients_C
+            new_ambulance.remaining_energy -= location.time_cost
             new_ambulance.patients_C = 0
 
 
-        elif action_type == 'DROPOFF_NON_CONTIGUOUS':
+
+        elif action_type == 'MOVE AND DROPOFF_NON_CONTIGUOUS':
             new_ambulance.remaining_patients_N -= new_ambulance.patients_N
+            new_ambulance.remaining_energy -= location.time_cost
             new_ambulance.patients_N = 0
 
         elif action_type == 'MOVE':
