@@ -1,7 +1,7 @@
 import sys
 import csv
 import heapq
-initial_energy = 50
+initial_energy = 15
 
 
 def main():
@@ -74,7 +74,7 @@ def main():
                 initial_patients_C += 1
             elif loc.cell_type == 'N':
                 initial_patients_N += 1
-        initial_ambulance = Ambulance(parking_location.row,parking_location.col, 0, 0,initial_patients_C,initial_patients_N, 6, 0)  # Initial patients and energy values can be adjusted
+        initial_ambulance = Ambulance(parking_location.row,parking_location.col, 0, 0,initial_patients_C,initial_patients_N, initial_energy, 0)  # Initial patients and energy values can be adjusted
         return initial_ambulance
 
     def goal_test(ambulance):
@@ -94,7 +94,7 @@ def main():
                     possible_actions.append(('MOVE', new_location))
 
                 # Pick up patients
-                if ambulance.patients_N < 10 and new_location.cell_type == 'N' and ambulance.patients_C == 0:
+                if ambulance.patients_N < 10 and new_location.cell_type == 'N' and ambulance.patients_C <2:
                     possible_actions.append(('PICKUP_NON_CONTIGUOUS', new_location))
 
                 if ambulance.patients_C < 2 and new_location.cell_type == 'C' and ambulance.patients_N < 9 and ambulance.patients_N == ambulance.remaining_patients_N:
@@ -146,87 +146,63 @@ def main():
             new_ambulance.remaining_energy -= location.time_cost
 
         elif action_type == 'RECHARGE':
-            new_ambulance.remaining_energy = 6
+            new_ambulance.remaining_energy = initial_energy
             new_ambulance.timesinp+=1
 
 
 
         return new_ambulance
 
-    def cost(ambulance, action):
-        action_type, location = action
-
-        # Cost of moving to a new location
-        move_cost = location.time_cost
-
-        return move_cost
 
 
+    def heuristic_1(ambulance, location):
+        if ambulance.remaining_patients_C == 0 and ambulance.remaining_patients_N == 0:
+            for loc in locations:
+                if loc.cell_type == 'P':
+                    return abs(loc.row - location.row) + abs(loc.col - location.col)
+        elif ambulance.remaining_patients_C != 0 or ambulance.remaining_patients_N != 0:
+            if ambulance.remaining_patients_N == 0:    
+                if ambulance.
+                    for loc in locations:
+                        if loc.cell_type == 'C':
+                            return abs(loc.row - location.row) + abs(loc.col - location.col)
 
 
-    def heuristic_1(ambulance):
-
-        return 0
-        # Implement the first heuristic function
-
-        pass
-
-    def heuristic_2(state):
+    def heuristic_2(ambulance,location):
         # Implement the second heuristic function
+        if ambulance.remaining_patients_C == 0 and ambulance.remaining_patients_N == 0:
+            for loc in locations:
+                if loc.cell_type == 'P':
+                    return abs(loc.row - location.row) + abs(loc.col - location.col)
         return 0
         pass
-
+    def go_back_ambulance(ambulance):
+        for loc in locations:
+                if loc.cell_type == 'P':
+                    return abs(loc.row - ambulance.row) + abs(loc.col - ambulance.col)
     def a_star_search(initial_state, heuristic_function):
-        heap = [(initial_state, 0)]
-        came_from = {initial_state: None}
-        visited = set()
-
+        heap = [(initial_state, 0)] #Open List
+        came_from = set() #Closed list
         while heap:
-            for i,j in heap:
-                print("heap",i.row,i.col,i.patients_C,i.patients_N,i.remaining_patients_C,i.remaining_patients_N,i.remaining_energy,j)
-            #print("heap",heap[0][0].row,heap[0][0].col,heap[0][0].patients_C,heap[0][0].patients_N,heap[0][0].remaining_patients_C,heap[0][0].remaining_patients_N,heap[0][0].remaining_energy)
+           
             current_state , current_cost  = heapq.heappop(heap)
-            
+
+            print("heap",current_state.row,current_state.col,current_state.patients_C,current_state.patients_N,current_state.remaining_patients_C,current_state.remaining_patients_N,current_state.remaining_energy,current_state.timesinp)
             if goal_test(current_state):
                 print("Diablo",len(came_from))
                 print("heap",current_state.row,current_state.col,current_state.patients_C,current_state.patients_N,current_state.remaining_patients_C,current_state.remaining_patients_N,current_state.remaining_energy,current_state.timesinp)
-                before_state = came_from[current_state]
-                print(came_from[current_state].row, came_from[current_state].col, came_from[current_state])
-                before_before = came_from[before_state]
-                print(came_from[before_state].row, came_from[before_state].col, came_from[before_state])
-                a = came_from[before_before]
-                print(came_from[before_before].row, came_from[before_before].col, came_from[before_before])
-                b = came_from[a]
-                print(came_from[a].row, came_from[a].col, came_from[a])
-                c = came_from[b]
-                print(came_from[b].row, came_from[b].col, came_from[b])
-                d = came_from[c]
-                print(came_from[c].row, came_from[c].col, came_from[c])
                 return current_state, came_from  # Found the goal state
-            
+            print("Number of actions available: ", len(actions(current_state)))
             for action,location in actions(current_state):
-                print(action,location.cell_type)
+                #print(action,location.cell_type)
                 new_state = result(current_state, action, location)
-                if location.cell_type == "C" or location.cell_type == "N" or location.cell_type == "CC" or location.cell_type == "CN" or location.cell_type == "P":
-                    visited.clear()
-                    pass
-
-                if location in visited:
-                    pass
-
-                visited.add(location)
-                new_cost = 0
                 if heuristic_function == 1:
-                    new_cost = current_cost + int(cost(current_state, action)) + heuristic_1(new_state)  
+                    new_cost = current_cost + location.time_cost + heuristic_1(new_state,location)  
                 elif heuristic_function == 2:
-                    new_cost = current_cost + int(cost(current_state, action)) + heuristic_2(new_state)
-                if current_state.remaining_energy <= 0:
-                    #return None
-                    continue
-                elif current_state.timesinp >=3:
-                    continue
+                    new_cost = current_cost + location.time_cost + heuristic_2(new_state,location)
+                
                 heapq.heappush(heap, (new_state, new_cost))
-                came_from[new_state] = current_state
+                came_from.add(current_state)
 
 
                 #energy
@@ -235,9 +211,10 @@ def main():
                     #return None
                     came_from = {initial_state: None}
                     heap = [(initial_state,0)]
-                elif current_state.timesinp >=5:
+                elif current_state.timesinp >=1:
                     came_from = {initial_state: None}
                     heap = [(initial_state,0)]
+               
         print("Fok")
         return None  # No solution found
 
