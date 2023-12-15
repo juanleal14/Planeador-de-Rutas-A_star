@@ -1,7 +1,7 @@
 import sys
 import csv
 import heapq
-initial_energy = 15
+initial_energy = 50
 
 
 def main():
@@ -90,14 +90,15 @@ def main():
 
             if 0 <= new_row < ambulance.total_rows and 0 <= new_col < ambulance.total_columns:
                 new_location = next(loc for loc in locations if loc.row == new_row and loc.col == new_col)
-                if new_location.cell_type not in ['X', 'P', 'C', 'N', 'CC', 'CN']:  # Exclude non-traversable and parking cells
+                if new_location.cell_type not in ['X']:  # Exclude non-traversable and parking cells
                     possible_actions.append(('MOVE', new_location))
 
                 # Pick up patients
                 if ambulance.patients_N < 10 and new_location.cell_type == 'N' and ambulance.patients_C <2:
                     possible_actions.append(('PICKUP_NON_CONTIGUOUS', new_location))
-
+                #print("Pick up C----patients_C",ambulance.patients_C)
                 if ambulance.patients_C < 2 and new_location.cell_type == 'C' and ambulance.patients_N < 9 and ambulance.patients_N == ambulance.remaining_patients_N:
+                    print("Picked up C")
                     possible_actions.append(('PICKUP_CONTIGUOUS', new_location))
 
                 # Drop off patients
@@ -119,14 +120,12 @@ def main():
             
         if action_type == 'PICKUP_CONTIGUOUS':
             new_ambulance.patients_C += 1
-            new_ambulance.remaining_energy -= location.time_cost
             location.cell_type = 'travelcell'
             location.time_cost = 1
 
 
         elif action_type == 'PICKUP_NON_CONTIGUOUS':
             new_ambulance.patients_N += 1
-            new_ambulance.remaining_energy -= location.time_cost
             location.cell_type = 'travelcell'
             location.time_cost = 1
 
@@ -134,13 +133,11 @@ def main():
         elif action_type == 'DROPOFF_CONTIGUOUS':
             new_ambulance.remaining_patients_C -= new_ambulance.patients_C
             new_ambulance.patients_C = 0
-            new_ambulance.remaining_energy -= location.time_cost
 
 
         elif action_type == 'DROPOFF_NON_CONTIGUOUS':
             new_ambulance.remaining_patients_N -= new_ambulance.patients_N
             new_ambulance.patients_N = 0
-            new_ambulance.remaining_energy -= location.time_cost
 
         elif action_type == 'MOVE':
             new_ambulance.remaining_energy -= location.time_cost
@@ -156,17 +153,58 @@ def main():
 
 
     def heuristic_1(ambulance, location):
+        Min = float('inf')
         if ambulance.remaining_patients_C == 0 and ambulance.remaining_patients_N == 0:
             for loc in locations:
                 if loc.cell_type == 'P':
                     return abs(loc.row - location.row) + abs(loc.col - location.col)
         elif ambulance.remaining_patients_C != 0 or ambulance.remaining_patients_N != 0:
             if ambulance.remaining_patients_N == 0:    
-                if ambulance.
+                if ambulance.patients_C < 2:
                     for loc in locations:
                         if loc.cell_type == 'C':
+                            
                             return abs(loc.row - location.row) + abs(loc.col - location.col)
-
+                elif ambulance.patients_C == 2:
+                    for loc in locations:
+                        if loc.cell_type == 'CC':
+                            return abs(loc.row - location.row) + abs(loc.col - location.col)
+            elif ambulance.remaining_patients_C == 0:
+                if ambulance.patients_N < 8:
+                    for loc in locations:
+                        if loc.cell_type == 'N':
+                            return abs(loc.row - location.row) + abs(loc.col - location.col)
+                elif ambulance.patients_N == 8:
+                    for loc in locations:
+                        if loc.cell_type == 'CN':
+                            return abs(loc.row - location.row) + abs(loc.col - location.col)
+            elif ambulance.remaining_patients_C != 0 and ambulance.remaining_patients_N != 0:
+                if ambulance.patients_C == 0 and ambulance.patients_N == 0:
+                    for loc in locations:
+                        if loc.cell_type == 'N':
+                            return abs(loc.row - location.row) + abs(loc.col - location.col)
+                elif ambulance.patients_C != 0 and ambulance.patients_N == 0:
+                    for loc in locations:
+                        if loc.cell_type == 'CC':
+                            return abs(loc.row - location.row) + abs(loc.col - location.col)
+                elif ambulance.patients_C == 0 and ambulance.patients_N != 0:
+                    if ambulance.patients_N < 8:
+                        for loc in locations:
+                            if loc.cell_type == 'N':
+                                return abs(loc.row - location.row) + abs(loc.col - location.col)
+                    elif ambulance.patients_N == 8:
+                        for loc in locations:
+                            if loc.cell_type == 'CN':
+                                return abs(loc.row - location.row) + abs(loc.col - location.col)
+                elif ambulance.patients_C != 0 and ambulance.patients_N != 0:
+                    if ambulance.patients_C < 2:
+                        for loc in locations:
+                            if loc.cell_type == 'C':
+                                return abs(loc.row - location.row) + abs(loc.col - location.col)
+                    elif ambulance.patients_C == 2:
+                        for loc in locations:
+                            if loc.cell_type == 'CC':
+                                return abs(loc.row - location.row) + abs(loc.col - location.col)
 
     def heuristic_2(ambulance,location):
         # Implement the second heuristic function
@@ -187,33 +225,28 @@ def main():
            
             current_state , current_cost  = heapq.heappop(heap)
 
-            print("heap",current_state.row,current_state.col,current_state.patients_C,current_state.patients_N,current_state.remaining_patients_C,current_state.remaining_patients_N,current_state.remaining_energy,current_state.timesinp)
-            if goal_test(current_state):
-                print("Diablo",len(came_from))
+            if current_state not in came_from and current_state.remaining_energy > 0 and current_state.timesinp < 20:
                 print("heap",current_state.row,current_state.col,current_state.patients_C,current_state.patients_N,current_state.remaining_patients_C,current_state.remaining_patients_N,current_state.remaining_energy,current_state.timesinp)
-                return current_state, came_from  # Found the goal state
-            print("Number of actions available: ", len(actions(current_state)))
-            for action,location in actions(current_state):
-                #print(action,location.cell_type)
-                new_state = result(current_state, action, location)
-                if heuristic_function == 1:
-                    new_cost = current_cost + location.time_cost + heuristic_1(new_state,location)  
-                elif heuristic_function == 2:
-                    new_cost = current_cost + location.time_cost + heuristic_2(new_state,location)
-                
-                heapq.heappush(heap, (new_state, new_cost))
+                if goal_test(current_state):
+                    print("Diablo",len(came_from))
+                    print("heap",current_state.row,current_state.col,current_state.patients_C,current_state.patients_N,current_state.remaining_patients_C,current_state.remaining_patients_N,current_state.remaining_energy,current_state.timesinp)
+                    return current_state, came_from  # Found the goal state
+                print("Number of actions available: ", len(actions(current_state)))
+                for action,location in actions(current_state):
+                    #print(action,location.cell_type)
+                    new_state = result(current_state, action, location)
+                    new_cost = 0
+                    if heuristic_function == 1:
+                        new_cost = current_cost + location.time_cost + heuristic_1(new_state,location)  
+                    elif heuristic_function == 2:
+                        new_cost = current_cost + location.time_cost + heuristic_2(new_state,location)
+                    
+                    heapq.heappush(heap, (new_state, new_cost))
                 came_from.add(current_state)
 
 
-                #energy
+                    #energy
 
-                if current_state.remaining_energy <= 0:
-                    #return None
-                    came_from = {initial_state: None}
-                    heap = [(initial_state,0)]
-                elif current_state.timesinp >=1:
-                    came_from = {initial_state: None}
-                    heap = [(initial_state,0)]
                
         print("Fok")
         return None  # No solution found
