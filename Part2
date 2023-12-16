@@ -24,7 +24,7 @@ def main():
             self.timesinp= timesinp
             self.map = list(locations)
             self.collected_patients = list(collected_patients)
-            self.parent = parent
+            self.parent = parent.copy() if parent else None
         def __eq__(self, other):
             if isinstance(other, Ambulance):
                 return self.location == other.location and self.patients_C == other.patients_C and self.patients_N == other.patients_N and self.remaining_patients_C == other.remaining_patients_C and self.remaining_patients_N == other.remaining_patients_N
@@ -184,7 +184,6 @@ def main():
             new_ambulance.timesinp+=1
 
 
-
         return new_ambulance
 
 
@@ -305,12 +304,13 @@ def main():
                         end_time = time.time()
                         total_time = end_time - start_time
                         print("Diablo",len(came_from))
-                        print("heap",current_state.location.row,current_state.location.col,current_state.patients_C,current_state.patients_N,current_state.remaining_patients_C,current_state.remaining_patients_N,current_state.remaining_energy,current_state.timesinp)
+                        #print("heap",current_state.location.row,current_state.location.col,current_state.patients_C,current_state.patients_N,current_state.remaining_patients_C,current_state.remaining_patients_N,current_state.remaining_energy,current_state.timesinp)
                         #print(current_state.parent.location.row,current_state.parent.location.col,current_state.parent.patients_C,current_state.parent.patients_N,current_state.parent.remaining_patients_C,current_state.parent.remaining_patients_N,current_state.parent.remaining_energy,current_state.parent.timesinp)
-                        parent = parent_by_node[current_state]
-                        while parent and parent != initial_state:
-                            print("parent")
-                            parent = parent_by_node[parent]	
+                        #parent = current_state.parent
+                        #print("parent",parent.location.row,parent.location.col,parent.patients_C,parent.patients_N,parent.remaining_patients_C,parent.remaining_patients_N,parent.remaining_energy,parent.timesinp)
+                        #while parent and parent != initial_state:
+                            #print("parent")
+                            #parent = parent.parent
                         return current_state, came_from, total_time, expanded_nodes # Found the goal state
                     print("Number of actions available: ", len(actions(current_state)))
                     for action,location in actions(current_state):
@@ -327,7 +327,7 @@ def main():
                             new_cost = current_cost + move_cost + heuristic_cost
                             #print("new_cost",new_cost)
                         elif heuristic_function == 2:
-                            heuristic_cost = heuristic_1(new_loc)
+                            heuristic_cost = heuristic_2(new_loc)
                             move_cost = new_state.location.time_cost
                             new_cost = current_cost + move_cost + heuristic_cost
                         new_state = result(current_state, action, location)
