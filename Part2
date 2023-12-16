@@ -312,7 +312,7 @@ def main():
                             #if parent.traversed == None:
                                 #break
                             #parent = parent.traversed.pop()
-                        return current_state, current_state.traversed, total_time, expanded_nodes # Found the goal state
+                        return current_state, current_state.traversed, total_time, expanded_nodes, current_state.traversed[-1] # Found the goal state
                     print("Number of actions available: ", len(actions(current_state)))
                     for action,location in actions(current_state):
                         #print(action,location.cell_type)
@@ -393,7 +393,7 @@ def main():
         file_name = os.path.splitext(os.path.basename(file_path))[0]
         print(file_name)
         print_solution(file_name,heuristic_num,solution[1])
-        print_statistics(file_name,heuristic_num,solution[2], solution[0].remaining_energy, len(solution[1]), solution[3])
+        print_statistics(file_name,heuristic_num,solution[2], solution[0].timesinp*solution[0].remaining_energy - solution[4].remaining_energy, len(solution[1]), solution[3])
     else:
         print("No solution found.")
 
