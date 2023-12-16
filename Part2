@@ -299,43 +299,26 @@ def main():
 
             if current_state not in came_from and current_state.timesinp < 5 and current_state.remaining_energy >= 0:
                     expanded_nodes += 1
-                    print("heap",current_state.location.row,current_state.location.col,current_state.patients_C,current_state.patients_N,current_state.remaining_patients_C,current_state.remaining_patients_N,current_state.remaining_energy,current_state.timesinp)
                     if goal_test(current_state):
                         end_time = time.time()
                         total_time = end_time - start_time
-                        print("Diablo",len(came_from))
-                        #print("heap",current_state.location.row,current_state.location.col,current_state.patients_C,current_state.patients_N,current_state.remaining_patients_C,current_state.remaining_patients_N,current_state.remaining_energy,current_state.timesinp)
-                        #print(current_state.parent.location.row,current_state.parent.location.col,current_state.parent.patients_C,current_state.parent.patients_N,current_state.parent.remaining_patients_C,current_state.parent.remaining_patients_N,current_state.parent.remaining_energy,current_state.parent.timesinp)
                         #parent = current_state.parent
-                        #print("parent",parent.location.row,parent.location.col,parent.patients_C,parent.patients_N,parent.remaining_patients_C,parent.remaining_patients_N,parent.remaining_energy,parent.timesinp)
                         #while parent and parent != initial_state:
-                            #print("parent")
                             #parent = parent.parent
                         return current_state, came_from, total_time, expanded_nodes # Found the goal state
-                    print("Number of actions available: ", len(actions(current_state)))
                     for action,location in actions(current_state):
-                        #print(action,location.cell_type)
                         new_loc= applyactions(location,current_state)
                         new_state = result(current_state, action, location)
                         new_cost = 0
                         if heuristic_function == 1:
-                            #print("Heuristic 1")
-                            #print(new_state.location.row,new_state.location.col,new_state.patients_C,new_state.patients_N,new_state.remaining_patients_C,new_state.remaining_patients_N,new_state.remaining_energy,new_state.timesinp)
-                            print(current_cost,location.time_cost,heuristic_1(new_state))
                             heuristic_cost = heuristic_1(new_loc)
                             move_cost = new_state.location.time_cost
                             new_cost = current_cost + move_cost + heuristic_cost
-                            #print("new_cost",new_cost)
                         elif heuristic_function == 2:
                             heuristic_cost = heuristic_2(new_loc)
                             move_cost = new_state.location.time_cost
                             new_cost = current_cost + move_cost + heuristic_cost
                         new_state = result(current_state, action, location)
-                        print("Action:", action)
-                        print("Location:", location.row, location.col)
-                        print("Move Cost:", move_cost)
-                        print("Heuristic Cost:", heuristic_cost)
-                        #print("HOla?")
                         parent_by_node[new_state] = current_state
                         heapq.heappush(heap, (new_cost, new_state))
                     came_from.add(current_state)
@@ -345,7 +328,6 @@ def main():
                     #energy
 
                
-        print("Fok")
         return None, None, None, None  # No solution found
     def print_statistics(file_name,heuristic_num,total_time, total_cost, plan_length, expanded_nodes):
         with open( file_name + "-" + str(heuristic_num) + ".stat", "w") as stat_file:
@@ -391,7 +373,6 @@ def main():
         sys.exit(1)
 
     if solution:
-        print("Diablo papi o mami que rico")
         file_name = os.path.splitext(os.path.basename(file_path))[0]
         print(file_name)
         print_solution(file_name,heuristic_num,solution[1])
