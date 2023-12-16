@@ -2,6 +2,8 @@ import sys
 import csv
 import heapq
 from cmath import inf
+import time
+import os
 
 initial_energy = 50
 
@@ -10,7 +12,7 @@ def main():
 
     # Example code for parsing the map
     class Ambulance:
-        def __init__(self, location, patients_C, patients_N,remaining_patients_C, remaining_patients_N, remaining_energy, timesinp,locations, collected_patients):
+        def __init__(self, location, patients_C, patients_N,remaining_patients_C, remaining_patients_N, remaining_energy, timesinp,locations, collected_patients, parent):
             self.location = location
             self.patients_C = patients_C
             self.patients_N = patients_N
@@ -22,17 +24,20 @@ def main():
             self.timesinp= timesinp
             self.map = list(locations)
             self.collected_patients = list(collected_patients)
+            self.parent = parent
         def __eq__(self, other):
             if isinstance(other, Ambulance):
-                return self.location == other.location and self.patients_C == other.patients_C and self.patients_N == other.patients_N
+                return self.location == other.location and self.patients_C == other.patients_C and self.patients_N == other.patients_N and self.remaining_patients_C == other.remaining_patients_C and self.remaining_patients_N == other.remaining_patients_N
             return False
 
         def __hash__(self):
-            return hash((self.location, self.patients_C, self.patients_N, self.remaining_patients_C, self.remaining_patients_N, self.remaining_energy))
+            return hash((self.location, self.patients_C, self.patients_N, self.remaining_patients_C, self.remaining_patients_N, self.remaining_energy,self.parent))
         def __lt__(self, other):
             if isinstance(other, Ambulance):
                 return self.remaining_energy > other.remaining_energy
             return NotImplemented
+        def __copy__(self):
+            return Ambulance(self.location, self.patients_C, self.patients_N, self.remaining_patients_C, self.remaining_patients_N, self.remaining_energy, self.map, self.collected_patients, self.parent)
     class Location:
         def __init__(self, row, col, cell_type, time_cost):
             self.row = row
@@ -86,7 +91,7 @@ def main():
                 initial_patients_C += 1
             elif loc.cell_type == 'N':
                 initial_patients_N += 1
-        initial_ambulance = Ambulance(parking_location, 0, 0,initial_patients_C,initial_patients_N, initial_energy, 0, locations, set())  # Initial patients and energy values can be adjusted
+        initial_ambulance = Ambulance(parking_location, 0, 0,initial_patients_C,initial_patients_N, initial_energy, 0, locations, set(),None)  # Initial patients and energy values can be adjusted
         return initial_ambulance
 
     def goal_test(ambulance):
@@ -101,7 +106,7 @@ def main():
 
             if 0 <= new_row < ambulance.total_rows and 0 <= new_col < ambulance.total_columns:
                 loc1 = Location(0, 0, 'NONE', 1)
-                new_ambulance = Ambulance(ambulance.location, ambulance.patients_C, ambulance.patients_N, ambulance.remaining_patients_C,ambulance.remaining_patients_N,ambulance.remaining_energy, ambulance.timesinp, ambulance.map, ambulance.collected_patients)
+                new_ambulance = Ambulance(ambulance.location, ambulance.patients_C, ambulance.patients_N, ambulance.remaining_patients_C,ambulance.remaining_patients_N,ambulance.remaining_energy, ambulance.timesinp, ambulance.map, ambulance.collected_patients,ambulance.parent)
                 for loc in new_ambulance.map:
                     if loc.row == new_row and loc.col == new_col:
                         loc1 = loc
@@ -136,11 +141,11 @@ def main():
         return possible_actions
     
     def applyactions(location, ambulance):
-        newambulance = Ambulance(location, ambulance.patients_C, ambulance.patients_N, ambulance.remaining_patients_C,ambulance.remaining_patients_N,ambulance.remaining_energy, ambulance.timesinp, ambulance.map, ambulance.collected_patients)
+        newambulance = Ambulance(location, ambulance.patients_C, ambulance.patients_N, ambulance.remaining_patients_C,ambulance.remaining_patients_N,ambulance.remaining_energy, ambulance.timesinp, ambulance.map, ambulance.collected_patients, ambulance.parent)
         return newambulance
 
     def result(ambulance, action, location):
-        new_ambulance = Ambulance(location, ambulance.patients_C, ambulance.patients_N, ambulance.remaining_patients_C,ambulance.remaining_patients_N,ambulance.remaining_energy, ambulance.timesinp, ambulance.map, ambulance.collected_patients)
+        new_ambulance = Ambulance(location, ambulance.patients_C, ambulance.patients_N, ambulance.remaining_patients_C,ambulance.remaining_patients_N,ambulance.remaining_energy, ambulance.timesinp, ambulance.map, ambulance.collected_patients,ambulance.parent)
 
             
         if action == 'MOVE AND PICKUP_CONTIGUOUS':
@@ -188,7 +193,7 @@ def main():
         min1=float(inf)
         num1=0
         num2=0
-        new_ambulance = Ambulance(ambulance.location, ambulance.patients_C, ambulance.patients_N, ambulance.remaining_patients_C,ambulance.remaining_patients_N,ambulance.remaining_energy, ambulance.timesinp, ambulance.map, ambulance.collected_patients)
+        new_ambulance = Ambulance(ambulance.location, ambulance.patients_C, ambulance.patients_N, ambulance.remaining_patients_C,ambulance.remaining_patients_N,ambulance.remaining_energy, ambulance.timesinp, ambulance.map, ambulance.collected_patients,ambulance.parent)
        
         if new_ambulance.remaining_patients_C == 0 and new_ambulance.remaining_patients_N == 0:
             for loc in new_ambulance.map:
@@ -274,28 +279,39 @@ def main():
 
     
     def heuristic_2(ambulance):
-        # Implement the second heuristic function
-        if ambulance.remaining_patients_C == 0 and ambulance.remaining_patients_N == 0:
-            for loc in ambulance.map:
-                if loc.cell_type == 'P':
-                    return abs(loc.row - ambulance.location.row) + abs(loc.col - ambulance.location.col)
-        return 0
-        pass
+        min = float(inf)
+        for loc in ambulance.map:
+            if loc.cell_type in ['C', 'N'] and loc not in ambulance.collected_patients:
+                distance = abs(loc.row - ambulance.location.row) + abs(loc.col - ambulance.location.col)
+                if distance < min:
+                    min = distance
+        return min if min != float(inf)  else 0
+    
 
     def a_star_search(initial_state, heuristic_function):
         heap = [(0, initial_state)] #Open List
+        start_time = time.time()
         came_from = set() #Closed list
+        parent_by_node= {initial_state: None} #parent for each node
+        expanded_nodes = 0
         while heap:
            
             current_cost , current_state  = heapq.heappop(heap)
 
             if current_state not in came_from and current_state.timesinp < 5 and current_state.remaining_energy >= 0:
+                    expanded_nodes += 1
                     print("heap",current_state.location.row,current_state.location.col,current_state.patients_C,current_state.patients_N,current_state.remaining_patients_C,current_state.remaining_patients_N,current_state.remaining_energy,current_state.timesinp)
                     if goal_test(current_state):
-  
+                        end_time = time.time()
+                        total_time = end_time - start_time
                         print("Diablo",len(came_from))
                         print("heap",current_state.location.row,current_state.location.col,current_state.patients_C,current_state.patients_N,current_state.remaining_patients_C,current_state.remaining_patients_N,current_state.remaining_energy,current_state.timesinp)
-                        return current_state, came_from  # Found the goal state
+                        #print(current_state.parent.location.row,current_state.parent.location.col,current_state.parent.patients_C,current_state.parent.patients_N,current_state.parent.remaining_patients_C,current_state.parent.remaining_patients_N,current_state.parent.remaining_energy,current_state.parent.timesinp)
+                        parent = parent_by_node[current_state]
+                        while parent and parent != initial_state:
+                            print("parent")
+                            parent = parent_by_node[parent]	
+                        return current_state, came_from, total_time, expanded_nodes # Found the goal state
                     print("Number of actions available: ", len(actions(current_state)))
                     for action,location in actions(current_state):
                         #print(action,location.cell_type)
@@ -306,18 +322,21 @@ def main():
                             #print("Heuristic 1")
                             #print(new_state.location.row,new_state.location.col,new_state.patients_C,new_state.patients_N,new_state.remaining_patients_C,new_state.remaining_patients_N,new_state.remaining_energy,new_state.timesinp)
                             print(current_cost,location.time_cost,heuristic_1(new_state))
-                            heuristic_cost = 5*heuristic_1(new_loc)
+                            heuristic_cost = heuristic_1(new_loc)
                             move_cost = new_state.location.time_cost
                             new_cost = current_cost + move_cost + heuristic_cost
                             #print("new_cost",new_cost)
                         elif heuristic_function == 2:
-                            new_cost = current_cost + location.time_cost + 5*heuristic_2(new_state,location)
+                            heuristic_cost = heuristic_1(new_loc)
+                            move_cost = new_state.location.time_cost
+                            new_cost = current_cost + move_cost + heuristic_cost
                         new_state = result(current_state, action, location)
                         print("Action:", action)
                         print("Location:", location.row, location.col)
                         print("Move Cost:", move_cost)
                         print("Heuristic Cost:", heuristic_cost)
                         #print("HOla?")
+                        parent_by_node[new_state] = current_state
                         heapq.heappush(heap, (new_cost, new_state))
                     came_from.add(current_state)
                 
@@ -327,28 +346,31 @@ def main():
 
                
         print("Fok")
-        return None  # No solution found
+        return None, None, None, None  # No solution found
+    def print_statistics(file_name,heuristic_num,total_time, total_cost, plan_length, expanded_nodes):
+        with open( file_name + "-" + str(heuristic_num) + ".stat", "w") as stat_file:
+            stat_file.write(f"Total time: {total_time}\n")
+            stat_file.write(f"Total cost: {total_cost}\n")
+            stat_file.write(f"Plan length: {plan_length}\n")
+            stat_file.write(f"Expanded nodes: {expanded_nodes}\n")
 
-    def print_solution(state):
-        # Implement logic to print the solution
-        pass
+    def print_solution(file_name,heuristic_num,solution):
+        if not solution:
+            print("No solution found.")
+            return
+
+        output_file_path = file_name + "-" + str(heuristic_num) + ".output"
+
+        with open(output_file_path, "w") as output_file:
+            for step, state in enumerate(solution):
+                location = state.location
+                value = location.cell_type if location.cell_type != "travelcell" else location.time_cost
+                load = state.remaining_energy
+                output_file.write(f"({location.row},{location.col}):{value}:{load}\n")
+
+        print(f"Solution written to {output_file_path}")
 
 
-    file_path = sys.argv[1]
-    locations, rows, columns = parse_map(file_path)
-    heuristic = sys.argv[2]
-    print(heuristic)
-    print("\nInitial State\n")
-    Num_patients_C = sum(1 for loc in locations if loc.cell_type == 'C')
-    Num_patients_N = sum(1 for loc in locations if loc.cell_type == 'N')
-    print(Num_patients_C)
-    print(Num_patients_N)
-   
-   
-    print("\nGoal State\n")
-    
-    print("\n\nHeuristic Search: A*.....\n\n")
-    #Heuristic 1: 2*min{distance to nearest infectious center, distance to nearest non-infectious center}
     if len(sys.argv) != 3:
         print("Usage: python ASTARTraslados.py <pathmap.csv> <num-h>")
         sys.exit(1)
@@ -356,6 +378,7 @@ def main():
     heuristic_num = int(sys.argv[2])
 
     file_path = sys.argv[1]
+    locations, rows, columns = parse_map(file_path)
     #locations = parse_map(file_path)
     initial = initial_state(locations)
 
@@ -369,7 +392,10 @@ def main():
 
     if solution:
         print("Diablo papi o mami que rico")
-        print_solution(solution)
+        file_name = os.path.splitext(os.path.basename(file_path))[0]
+        print(file_name)
+        print_solution(file_name,heuristic_num,solution[1])
+        print_statistics(file_name,heuristic_num,solution[2], solution[0].remaining_energy, len(solution[1]), solution[3])
     else:
         print("No solution found.")
 
