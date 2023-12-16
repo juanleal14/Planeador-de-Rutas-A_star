@@ -1,0 +1,355 @@
+import sys
+import csv
+import heapq
+from cmath import inf
+import time
+import os
+
+initial_energy = 50
+
+
+def main():
+
+    #Create a class for the ambulance
+    class Ambulance:
+        #Constructor for the ambulance class
+        def __init__(self, location, patients_C, patients_N,remaining_patients_C, remaining_patients_N, remaining_energy, timesinp,locations, collected_patients, traversed):
+            self.location = location
+            self.patients_C = patients_C
+            self.patients_N = patients_N
+            self.remaining_patients_C = remaining_patients_C
+            self.remaining_patients_N = remaining_patients_N
+            self.total_rows = rows
+            self.total_columns = columns
+            self.remaining_energy = remaining_energy
+            self.timesinp= timesinp
+            self.map = list(locations)
+            self.collected_patients = list(collected_patients)
+            self.traversed = list(traversed)
+        #Equality function for comparing ambulances
+        def __eq__(self, other):
+            if isinstance(other, Ambulance):
+                return self.location == other.location and self.patients_C == other.patients_C and self.patients_N == other.patients_N and self.remaining_patients_C == other.remaining_patients_C and self.remaining_patients_N == other.remaining_patients_N
+            return False
+        #Hash function for ambulances
+        def __hash__(self):
+            return hash((self.location, self.patients_C, self.patients_N, self.remaining_patients_C, self.remaining_patients_N, self.remaining_energy))
+        #Comparison function for ambulances in the heapq
+        def __lt__(self, other):
+            if isinstance(other, Ambulance):
+                return self.remaining_energy > other.remaining_energy
+            return NotImplemented
+        #Copy method for creating new instances with the same ambulance
+        def __copy__(self):
+            return Ambulance(self.location, self.patients_C, self.patients_N, self.remaining_patients_C, self.remaining_patients_N, self.remaining_energy, self.map, self.collected_patients,self.traversed)
+    
+    #Create a class for the locations
+    class Location:
+        #Constructor for the location class
+        def __init__(self, row, col, cell_type, time_cost):
+            self.row = row
+            self.col = col
+            self.cell_type = cell_type
+            self.time_cost = time_cost
+        #Equality function for comparing locations
+        def __eq__(self, other):
+            if isinstance(other, Location):
+                return (
+                    self.row == other.row
+                    and self.col == other.col
+                    and self.cell_type == other.cell_type
+                    and self.time_cost == other.time_cost
+                )
+            return False
+        #Hash function for locations
+        def __hash__(self):
+            return hash((self.row, self.col, self.cell_type, self.time_cost))
+    #Map reader function
+    def parse_map(file_path):
+        with open(file_path, newline='') as csvfile:
+            reader = csv.reader(csvfile, delimiter=';')
+            map_data = list(reader)
+        locations = []
+        for i, row in enumerate(map_data):
+            for j, cell in enumerate(row):
+                if cell in ['N', 'C', 'CC', 'CN', 'P']:
+                    locations.append(Location(i, j, cell, 1))
+                elif cell == 'X':
+                    locations.append(Location(i, j, cell, float('inf')))
+                else:
+                    try:
+                        time_cost = int(cell)
+                        locations.append(Location(i, j, 'travelcell', time_cost))
+                    except ValueError:
+                        pass
+        rows = i + 1
+        columns = j + 1
+        return locations, rows, columns
+    #Initialize the initial state of the ambulance
+    def initial_state(locations):
+        initial_patients_C = 0
+        initial_patients_N = 0
+        parking_location = next(loc for loc in locations if loc.cell_type == 'P')
+        for loc in locations:
+            if loc.cell_type == 'C':
+                initial_patients_C += 1
+            elif loc.cell_type == 'N':
+                initial_patients_N += 1
+        initial_ambulance = Ambulance(parking_location, 0, 0,initial_patients_C,initial_patients_N, initial_energy, 0, locations, set(),set())  # Initial patients and energy values can be adjusted
+        return initial_ambulance
+    #Test if the goal state is reached
+    def goal_test(ambulance):
+        return ambulance.location.cell_type == 'P' and ambulance.remaining_patients_C == 0 and ambulance.remaining_patients_N == 0 and ambulance.patients_C == 0 and ambulance.patients_N == 0
+    #Save all the possible actions for a cell
+    def actions(ambulance):
+        possible_actions = []
+        directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+        for dr, dc in directions:
+            new_row, new_col = ambulance.location.row + dr, ambulance.location.col + dc
+            if 0 <= new_row < ambulance.total_rows and 0 <= new_col < ambulance.total_columns:
+                loc1 = Location(0, 0, 'NONE', 1)
+                new_ambulance = Ambulance(ambulance.location, ambulance.patients_C, ambulance.patients_N, ambulance.remaining_patients_C,ambulance.remaining_patients_N,ambulance.remaining_energy, ambulance.timesinp, ambulance.map, ambulance.collected_patients,ambulance.traversed)
+                for loc in new_ambulance.map:
+                    if loc.row == new_row and loc.col == new_col:
+                        loc1 = loc
+                        break
+                if loc1.cell_type == 'travelcell':
+                    possible_actions.append(('MOVE', loc1))
+                if loc1.cell_type == 'N':
+                    if new_ambulance.patients_N < 10 and new_ambulance.patients_N >=0  and new_ambulance.patients_C ==0 and loc1 not in new_ambulance.collected_patients:
+                        possible_actions.append(('MOVE AND PICKUP_NON_CONTIGUOUS', loc1))
+                    else:
+                        possible_actions.append(('MOVE', loc1))
+                if loc1.cell_type == 'C':
+                    if new_ambulance.patients_C <2 and new_ambulance.patients_C>=0 and new_ambulance.patients_N < 9 and  loc1 not in new_ambulance.collected_patients:
+                        possible_actions.append(('MOVE AND PICKUP_CONTIGUOUS', loc1))
+                    else:
+                        possible_actions.append(('MOVE', loc1))
+                if loc1.cell_type == 'CC':
+                    if new_ambulance.patients_C  > 0:
+                        possible_actions.append(('MOVE AND DROPOFF_CONTIGUOUS', loc1))
+                    else:
+                        possible_actions.append(('MOVE', loc1))
+                if loc1.cell_type == 'CN':
+                    if new_ambulance.patients_N > 0 and new_ambulance.patients_C == 0:
+                        possible_actions.append(('MOVE AND DROPOFF_NON_CONTIGUOUS', loc1))
+                    else:
+                        possible_actions.append(('MOVE', loc1))
+                if loc1.cell_type == 'P':
+                    possible_actions.append(('RECHARGE', loc1))
+
+        return possible_actions
+    #Computes the new state after applying the movement of an action(for the heuristic value)
+    def applyactions(location, ambulance):
+        newambulance = Ambulance(location, ambulance.patients_C, ambulance.patients_N, ambulance.remaining_patients_C,ambulance.remaining_patients_N,ambulance.remaining_energy, ambulance.timesinp, ambulance.map, ambulance.collected_patients, ambulance.traversed)
+        return newambulance
+    #Computes all the changes after applying an action
+    def result(ambulance, action, location):
+        new_ambulance = Ambulance(location, ambulance.patients_C, ambulance.patients_N, ambulance.remaining_patients_C,ambulance.remaining_patients_N,ambulance.remaining_energy, ambulance.timesinp, ambulance.map, ambulance.collected_patients,ambulance.traversed)
+        if action == 'MOVE AND PICKUP_CONTIGUOUS':
+            new_ambulance.patients_C += 1
+            new_ambulance.remaining_energy -= ambulance.location.time_cost
+            new_ambulance.collected_patients.append(location)
+        elif action == 'MOVE AND PICKUP_NON_CONTIGUOUS':
+            new_ambulance.patients_N += 1
+            new_ambulance.remaining_energy -= ambulance.location.time_cost
+            new_ambulance.collected_patients.append(location)
+        elif action == 'MOVE AND DROPOFF_CONTIGUOUS':
+            new_ambulance.remaining_patients_C -= new_ambulance.patients_C
+            new_ambulance.remaining_energy -= ambulance.location.time_cost
+            new_ambulance.patients_C = 0
+        elif action == 'MOVE AND DROPOFF_NON_CONTIGUOUS':
+            new_ambulance.remaining_patients_N -= new_ambulance.patients_N
+            new_ambulance.remaining_energy -= ambulance.location.time_cost
+            new_ambulance.patients_N = 0
+        elif action == 'MOVE':
+            new_ambulance.remaining_energy -= ambulance.location.time_cost
+        elif action == 'RECHARGE':
+            new_ambulance.remaining_energy = initial_energy
+            new_ambulance.timesinp+=1
+
+        return new_ambulance
+    
+    #Heuristic function 1: Computes the minimum distance to the closest patient
+    def heuristic_1(ambulance):
+        min1=float(inf)
+        num1=0
+        num2=0
+        new_ambulance = Ambulance(ambulance.location, ambulance.patients_C, ambulance.patients_N, ambulance.remaining_patients_C,ambulance.remaining_patients_N,ambulance.remaining_energy, ambulance.timesinp, ambulance.map, ambulance.collected_patients,ambulance.traversed)
+        if new_ambulance.remaining_patients_C == 0 and new_ambulance.remaining_patients_N == 0:
+            for loc in new_ambulance.map:
+                if loc.cell_type == 'P':
+                    return abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+        elif new_ambulance.remaining_patients_C != 0 or new_ambulance.remaining_patients_N != 0:
+            if new_ambulance.remaining_patients_C!=0:
+                if new_ambulance.patients_C != new_ambulance.remaining_patients_C:
+                    if new_ambulance.patients_C == 2:
+                        for loc in new_ambulance.map:
+                            if loc.cell_type == 'CC':
+                                return abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+                    elif new_ambulance.patients_C > 0 and new_ambulance.patients_C < 2:
+                        for loc in new_ambulance.map:
+                            if loc.cell_type == 'C':
+                                num1= abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+                                if num1<min1:
+                                    min1=num1
+                            elif loc.cell_type == 'CC':
+                                num2= abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+                        return min(min1,num2)
+                    elif new_ambulance.patients_C == 0:
+                        if new_ambulance.patients_N != new_ambulance.remaining_patients_N:
+                            if new_ambulance.patients_N == 8:
+                                for loc in new_ambulance.map:
+                                    if loc.cell_type == 'CN':
+                                        num2= abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+                                    elif loc.cell_type =='C':
+                                        num1= abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+                                        if num1<min1:
+                                            min1=num1
+                                return min(min1,num2)
+                            elif new_ambulance.patients_N <8 and new_ambulance.patients_N > 0:
+                                for loc in new_ambulance.map:
+                                    if loc.cell_type == 'CN':
+                                        num2= abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+                                    elif loc.cell_type =='C' or loc.cell_type =='N':
+                                        num1= abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+                                        if num1<min1:
+                                            min1=num1
+                                return min(min1,num2)
+                            elif new_ambulance.patients_N == 0:
+                                for loc in new_ambulance.map:
+                                    if loc.cell_type =='N':
+                                        num1= abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+                                        if num1<min1:
+                                            min1=num1
+                                return min1
+                        else:
+                            for loc in new_ambulance.map:
+                                if loc.cell_type == 'CN':
+                                    num1= abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+                                elif loc.cell_type =='C':
+                                    num2= abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+                                    if num2<min1:
+                                        min1=num2
+                            return min(min1,num1)
+                else:
+                    for loc in new_ambulance.map:
+                        if loc.cell_type == 'CC':
+                            return abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+            else:
+                if new_ambulance.patients_N != new_ambulance.remaining_patients_N:
+                    if new_ambulance.patients_N == 8:
+                        for loc in new_ambulance.map:
+                            if loc.cell_type == 'CN':
+                                return abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+                    elif new_ambulance.patients_N <8:
+                        for loc in new_ambulance.map:
+                            if loc.cell_type == 'N':
+                                num1= abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+                                if num1<min1:
+                                    min1=num1
+                            elif loc.cell_type =='CN':
+                                num2= abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+                        return min(min1,num2)
+                else:
+                    for loc in new_ambulance.map:
+                        if loc.cell_type == 'CN':
+                            return abs(loc.row - new_ambulance.location.row) + abs(loc.col - new_ambulance.location.col)
+        return 0
+
+    #Heuristic function 2: Computes the minimum distance to the closest interest point
+    def heuristic_2(ambulance):
+        min = float(inf)
+        for loc in ambulance.map:
+            if loc.cell_type in ['C', 'N'] and loc not in ambulance.collected_patients:
+                distance = abs(loc.row - ambulance.location.row) + abs(loc.col - ambulance.location.col)
+                if distance < min:
+                    min = distance
+        return min if min != float(inf)  else 0
+    
+    #A* search algorithm
+    def a_star_search(initial_state, heuristic_function):
+        heap = [(0, initial_state)] #Open List
+        start_time = time.time()
+        came_from = set() #Closed list
+        expanded_nodes = 0
+        while heap:
+            current_cost , current_state  = heapq.heappop(heap)
+            if current_state not in came_from and current_state.timesinp < 5 and current_state.remaining_energy >= 0:
+                    expanded_nodes += 1
+                    if goal_test(current_state):
+                        end_time = time.time()
+                        total_time = end_time - start_time
+                        return current_state, current_state.traversed, total_time, expanded_nodes, current_state.traversed[-1] # Found the goal state
+                    for action,location in actions(current_state):
+                        new_loc= applyactions(location,current_state)
+                        new_state = result(current_state, action, location)
+                        new_cost = 0
+                        if heuristic_function == 1:
+                            heuristic_cost = heuristic_1(new_loc)
+                            move_cost = new_state.location.time_cost
+                            new_cost = current_cost + move_cost + heuristic_cost
+                        elif heuristic_function == 2:
+                            heuristic_cost = heuristic_2(new_loc)
+                            move_cost = new_state.location.time_cost
+                            new_cost = current_cost + move_cost + heuristic_cost
+                        if new_state not in came_from:
+                                new_state.traversed.append(current_state)
+                                heapq.heappush(heap, (new_cost, new_state))
+                        
+                    came_from.add(current_state)
+                
+        return None, None, None, None  # No solution found
+    
+    #Print the final results
+    def print_statistics(file_name,heuristic_num,total_time, total_cost, plan_length, expanded_nodes):
+        with open( file_name + "-" + str(heuristic_num) + ".stat", "w") as stat_file:
+            stat_file.write(f"Total time: {total_time}\n")
+            stat_file.write(f"Total cost: {total_cost}\n")
+            stat_file.write(f"Plan length: {plan_length}\n")
+            stat_file.write(f"Expanded nodes: {expanded_nodes}\n")
+    #Print the optimal path
+    def print_solution(file_name,heuristic_num,solution):
+        if not solution:
+            print("No solution found.")
+            return
+        output_file_path = file_name + "-" + str(heuristic_num) + ".output"
+        with open(output_file_path, "w") as output_file:
+            for step, state in enumerate(solution):
+                location = state.location
+                value = location.cell_type if location.cell_type != "travelcell" else location.time_cost
+                load = state.remaining_energy
+                output_file.write(f"({location.row},{location.col}):{value}:{load}\n")
+        print(f"Solution written to {output_file_path}")
+
+    #Error control
+    if len(sys.argv) != 3:
+        print("Usage: python ASTARTraslados.py <pathmap.csv> <num-h>")
+        sys.exit(1)
+
+    #Heuristic number
+    heuristic_num = int(sys.argv[2])
+
+    file_path = sys.argv[1]
+    locations, rows, columns = parse_map(file_path)
+    initial = initial_state(locations)
+
+    if heuristic_num == 1:
+        solution = a_star_search(initial, heuristic_num)
+    elif heuristic_num == 2:
+        solution = a_star_search(initial, heuristic_num)
+    else:
+        print("Invalid heuristic number.")
+        sys.exit(1)
+
+    if solution:
+        file_name = os.path.splitext(os.path.basename(file_path))[0]
+        print(file_name)
+        print_solution(file_name,heuristic_num,solution[1])
+        print_statistics(file_name,heuristic_num,solution[2], solution[0].timesinp*solution[0].remaining_energy - solution[4].remaining_energy, len(solution[1]), solution[3])
+    else:
+        print("No solution found.")
+
+    return locations
+if __name__ == "__main__":
+    main()
