@@ -12,7 +12,7 @@ def main():
 
     # Example code for parsing the map
     class Ambulance:
-        def __init__(self, location, patients_C, patients_N,remaining_patients_C, remaining_patients_N, remaining_energy, timesinp,locations, collected_patients, parent):
+        def __init__(self, location, patients_C, patients_N,remaining_patients_C, remaining_patients_N, remaining_energy, timesinp,locations, collected_patients, traversed):
             self.location = location
             self.patients_C = patients_C
             self.patients_N = patients_N
@@ -24,20 +24,20 @@ def main():
             self.timesinp= timesinp
             self.map = list(locations)
             self.collected_patients = list(collected_patients)
-            self.parent = parent.copy() if parent else None
+            self.traversed = list(traversed)
         def __eq__(self, other):
             if isinstance(other, Ambulance):
                 return self.location == other.location and self.patients_C == other.patients_C and self.patients_N == other.patients_N and self.remaining_patients_C == other.remaining_patients_C and self.remaining_patients_N == other.remaining_patients_N
             return False
 
         def __hash__(self):
-            return hash((self.location, self.patients_C, self.patients_N, self.remaining_patients_C, self.remaining_patients_N, self.remaining_energy,self.parent))
+            return hash((self.location, self.patients_C, self.patients_N, self.remaining_patients_C, self.remaining_patients_N, self.remaining_energy))
         def __lt__(self, other):
             if isinstance(other, Ambulance):
                 return self.remaining_energy > other.remaining_energy
             return NotImplemented
         def __copy__(self):
-            return Ambulance(self.location, self.patients_C, self.patients_N, self.remaining_patients_C, self.remaining_patients_N, self.remaining_energy, self.map, self.collected_patients, self.parent)
+            return Ambulance(self.location, self.patients_C, self.patients_N, self.remaining_patients_C, self.remaining_patients_N, self.remaining_energy, self.map, self.collected_patients,self.traversed)
     class Location:
         def __init__(self, row, col, cell_type, time_cost):
             self.row = row
@@ -91,7 +91,7 @@ def main():
                 initial_patients_C += 1
             elif loc.cell_type == 'N':
                 initial_patients_N += 1
-        initial_ambulance = Ambulance(parking_location, 0, 0,initial_patients_C,initial_patients_N, initial_energy, 0, locations, set(),None)  # Initial patients and energy values can be adjusted
+        initial_ambulance = Ambulance(parking_location, 0, 0,initial_patients_C,initial_patients_N, initial_energy, 0, locations, set(),set())  # Initial patients and energy values can be adjusted
         return initial_ambulance
 
     def goal_test(ambulance):
@@ -106,7 +106,7 @@ def main():
 
             if 0 <= new_row < ambulance.total_rows and 0 <= new_col < ambulance.total_columns:
                 loc1 = Location(0, 0, 'NONE', 1)
-                new_ambulance = Ambulance(ambulance.location, ambulance.patients_C, ambulance.patients_N, ambulance.remaining_patients_C,ambulance.remaining_patients_N,ambulance.remaining_energy, ambulance.timesinp, ambulance.map, ambulance.collected_patients,ambulance.parent)
+                new_ambulance = Ambulance(ambulance.location, ambulance.patients_C, ambulance.patients_N, ambulance.remaining_patients_C,ambulance.remaining_patients_N,ambulance.remaining_energy, ambulance.timesinp, ambulance.map, ambulance.collected_patients,ambulance.traversed)
                 for loc in new_ambulance.map:
                     if loc.row == new_row and loc.col == new_col:
                         loc1 = loc
@@ -141,11 +141,11 @@ def main():
         return possible_actions
     
     def applyactions(location, ambulance):
-        newambulance = Ambulance(location, ambulance.patients_C, ambulance.patients_N, ambulance.remaining_patients_C,ambulance.remaining_patients_N,ambulance.remaining_energy, ambulance.timesinp, ambulance.map, ambulance.collected_patients, ambulance.parent)
+        newambulance = Ambulance(location, ambulance.patients_C, ambulance.patients_N, ambulance.remaining_patients_C,ambulance.remaining_patients_N,ambulance.remaining_energy, ambulance.timesinp, ambulance.map, ambulance.collected_patients, ambulance.traversed)
         return newambulance
 
     def result(ambulance, action, location):
-        new_ambulance = Ambulance(location, ambulance.patients_C, ambulance.patients_N, ambulance.remaining_patients_C,ambulance.remaining_patients_N,ambulance.remaining_energy, ambulance.timesinp, ambulance.map, ambulance.collected_patients,ambulance.parent)
+        new_ambulance = Ambulance(location, ambulance.patients_C, ambulance.patients_N, ambulance.remaining_patients_C,ambulance.remaining_patients_N,ambulance.remaining_energy, ambulance.timesinp, ambulance.map, ambulance.collected_patients,ambulance.traversed)
 
             
         if action == 'MOVE AND PICKUP_CONTIGUOUS':
@@ -192,7 +192,7 @@ def main():
         min1=float(inf)
         num1=0
         num2=0
-        new_ambulance = Ambulance(ambulance.location, ambulance.patients_C, ambulance.patients_N, ambulance.remaining_patients_C,ambulance.remaining_patients_N,ambulance.remaining_energy, ambulance.timesinp, ambulance.map, ambulance.collected_patients,ambulance.parent)
+        new_ambulance = Ambulance(ambulance.location, ambulance.patients_C, ambulance.patients_N, ambulance.remaining_patients_C,ambulance.remaining_patients_N,ambulance.remaining_energy, ambulance.timesinp, ambulance.map, ambulance.collected_patients,ambulance.traversed)
        
         if new_ambulance.remaining_patients_C == 0 and new_ambulance.remaining_patients_N == 0:
             for loc in new_ambulance.map:
@@ -291,7 +291,7 @@ def main():
         heap = [(0, initial_state)] #Open List
         start_time = time.time()
         came_from = set() #Closed list
-        parent_by_node= {initial_state: None} #parent for each node
+        #parent_by_node= {initial_state: None} #parent for each node
         expanded_nodes = 0
         while heap:
            
@@ -299,28 +299,43 @@ def main():
 
             if current_state not in came_from and current_state.timesinp < 5 and current_state.remaining_energy >= 0:
                     expanded_nodes += 1
+                    print("heap",current_state.location.row,current_state.location.col,current_state.patients_C,current_state.patients_N,current_state.remaining_patients_C,current_state.remaining_patients_N,current_state.remaining_energy,current_state.timesinp)
                     if goal_test(current_state):
                         end_time = time.time()
                         total_time = end_time - start_time
-                        #parent = current_state.parent
-                        #while parent and parent != initial_state:
-                            #parent = parent.parent
-                        return current_state, came_from, total_time, expanded_nodes # Found the goal state
+                        print("Diablo",len(came_from))
+                        #print("heap",current_state.location.row,current_state.location.col,current_state.patients_C,current_state.patients_N,current_state.remaining_patients_C,current_state.remaining_patients_N,current_state.remaining_energy,current_state.timesinp)
+                        #print(current_state.parent.location.row,current_state.parent.location.col,current_state.parent.patients_C,current_state.parent.patients_N,current_state.parent.remaining_patients_C,current_state.parent.remaining_patients_N,current_state.parent.remaining_energy,current_state.parent.timesinp)
+                        #parent = current_state.traversed.pop()
+                        #while parent.traversed.__len__() != 0:
+                            #print("Parent",parent.location.row,parent.location.col,parent.patients_C,parent.patients_N,parent.remaining_patients_C,parent.remaining_patients_N,parent.remaining_energy,parent.timesinp)
+                            #if parent.traversed == None:
+                                #break
+                            #parent = parent.traversed.pop()
+                        return current_state, current_state.traversed, total_time, expanded_nodes # Found the goal state
+                    print("Number of actions available: ", len(actions(current_state)))
                     for action,location in actions(current_state):
+                        #print(action,location.cell_type)
                         new_loc= applyactions(location,current_state)
                         new_state = result(current_state, action, location)
                         new_cost = 0
                         if heuristic_function == 1:
+                            #print("Heuristic 1")
+                            #print(new_state.location.row,new_state.location.col,new_state.patients_C,new_state.patients_N,new_state.remaining_patients_C,new_state.remaining_patients_N,new_state.remaining_energy,new_state.timesinp)
+                            print(current_cost,location.time_cost,heuristic_1(new_state))
                             heuristic_cost = heuristic_1(new_loc)
                             move_cost = new_state.location.time_cost
                             new_cost = current_cost + move_cost + heuristic_cost
+                            #print("new_cost",new_cost)
                         elif heuristic_function == 2:
                             heuristic_cost = heuristic_2(new_loc)
                             move_cost = new_state.location.time_cost
                             new_cost = current_cost + move_cost + heuristic_cost
-                        new_state = result(current_state, action, location)
-                        parent_by_node[new_state] = current_state
-                        heapq.heappush(heap, (new_cost, new_state))
+                        #new_state = result(current_state, action, location)
+                        if new_state not in came_from:
+                                new_state.traversed.append(current_state)
+                                heapq.heappush(heap, (new_cost, new_state))
+                        
                     came_from.add(current_state)
                 
 
@@ -328,6 +343,7 @@ def main():
                     #energy
 
                
+        print("Fok")
         return None, None, None, None  # No solution found
     def print_statistics(file_name,heuristic_num,total_time, total_cost, plan_length, expanded_nodes):
         with open( file_name + "-" + str(heuristic_num) + ".stat", "w") as stat_file:
@@ -373,6 +389,7 @@ def main():
         sys.exit(1)
 
     if solution:
+        print("Diablo papi o mami que rico")
         file_name = os.path.splitext(os.path.basename(file_path))[0]
         print(file_name)
         print_solution(file_name,heuristic_num,solution[1])
